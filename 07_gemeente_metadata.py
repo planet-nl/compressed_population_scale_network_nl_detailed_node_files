@@ -188,7 +188,7 @@ elif fn.split(".")[-1]=="xlsx":
     for c in ["landsdeel","provincie","coropgebied"]:
         df[c] = df[c].str.slice(2,4)
 
-    df["gemeente_code"] = "GM" + df["gemeente"].astype(str).str.zfill(4)
+    df["gemeente_code"] = "GM" + df["gemeente_code"].astype(int).astype(str).str.zfill(4)
     df["landsdeel"] = df["landsdeel"].astype(int).astype(str)
     df["stedgem"] = df["stedgem"].astype(int).astype(str).str.zfill(1)
     
@@ -199,7 +199,7 @@ elif fn.split(".")[-1]=="xlsx":
 print(df[var_of_interest].head())
 print(df[var_of_interest].dtypes)
 
-print("NUMBER of GEMEENTE: ",len(pd.unique(df["gemeente"])))
+print("NUMBER of GEMEENTE: ",len(pd.unique(df["gemeente_code"])))
 # print(json.dumps(codebook,indent=4))
 
 # saving results
