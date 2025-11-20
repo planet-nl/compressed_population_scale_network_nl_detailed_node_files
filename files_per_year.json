@@ -1,0 +1,78 @@
+{
+    "node_files":{
+        "2009": [
+            "G:\\Bevolking\\GBAPERSOONTAB\\2009\\geconverteerde data\\GBAPERSOON2009TABV1_csv.csv"
+        ],
+        "2016": [
+            "G:\\Bevolking\\GBAPERSOONTAB\\2016\\geconverteerde data\\GBAPERSOONTAB2016V1.csv"
+        ],
+        "2017":[
+            "G:\\Bevolking\\GBAPERSOONTAB\\2017\\geconverteerde data\\GBAPERSOON2017TABV1.csv"
+        ],
+        "2018":[
+            "G:\\Bevolking\\GBAPERSOONTAB\\2018\\geconverteerde data\\GBAPERSOON2018TABV2.csv"
+        ],
+        "2019":[
+            "G:\\Bevolking\\GBAPERSOONTAB\\2019\\geconverteerde data\\GBAPERSOON2019TABV1.csv"
+        ],
+        "2020" : [
+            "G:\\Bevolking\\GBAPERSOONTAB\\2020\\geconverteerde data\\GBAPERSOON2020TABV3.csv"
+        ],
+        "2021" : [
+            "G:\\Bevolking\\GBAPERSOONTAB\\2021\\geconverteerde data\\GBAPERSOON2021TABV1.csv"
+        ],
+        "2022" : [
+            "G:\\Bevolking\\GBAPERSOONTAB\\2022\\geconverteerde data\\GBAPERSOON2022TABV2.csv"
+        ],
+        "2023" : [
+            "G:\\Bevolking\\GBAPERSOONTAB\\2023\\geconverteerde data\\GBAPERSOON2023TABV1.csv"
+        ],
+        "2024" : [
+            "G:\\Bevolking\\GBAPERSOONTAB\\2024\\GBAPERSOON2024TABV2.sav"
+        ]
+    },
+    "node_sep" : {
+        "2009" : ",",
+        "2010" : ",",
+        "2011" : ",",
+        "2012" : ",",
+        "2013" : ",",
+        "2014" : ",",
+        "2015" : ",",
+        "2016" : ";",
+        "2017" : "\t",
+        "2018" : ";",
+        "2019" : ";",
+        "2020" : ";",
+        "2021" : ";",
+        "2022" : ",",
+        "2023" : ";"
+    },
+    "node_encoding" : {
+        "2021" : "latin"
+    },
+    "edge_files" : {
+        "2009" : [
+            "H:\\shared_data\\misc\\BURENNETWERK2009TABV1.csv",
+            "G:\\Bevolking\\COLLEGANETWERKTAB\\COLLEGANETWERK2009TABV2.csv",
+            "G:\\Bevolking\\FAMILIENETWERKTAB\\FAMILIENETWERK2009TABV1.csv",
+            "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK2009TABV1.csv",
+            "G:\\Bevolking\\KLASGENOTENNETWERKTAB\\KLASGENOTENNETWERK2009TABV1.csv"
+
+        ],
+        "2022" : [
+            "G:\\Bevolking\\BURENNETWERKTAB\\geconverteerde data\\BURENNETWERK2022TABV1.csv",
+            "G:\\Bevolking\\COLLEGANETWERKTAB\\COLLEGANETWERK2022TABV2.csv",
+            "G:\\Bevolking\\FAMILIENETWERKTAB\\geconverteerde data\\FAMILIENETWERK2022TABV1.csv",
+            "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK2022TABV1.csv",
+            "G:\\Bevolking\\KLASGENOTENNETWERKTAB\\geconverteerde data\\KLASGENOTENNETWERK2022TABV1.csv"
+        ],
+        "2023": [
+            "G:\\Bevolking\\BURENNETWERKTAB\\BURENNETWERK2023TABV1.csv",
+            "H:\\shared_data\\misc\\COLLEGANETWERK2023TABV1.csv",
+            "G:\\Bevolking\\FAMILIENETWERKTAB\\FAMILIENETWERK2023TABV1.csv",
+            "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK2023TABV1.csv",
+            "G:\\Bevolking\\KLASGENOTENNETWERKTAB\\KLASGENOTENNETWERK2023TABV1.csv"
+        ]
+    }
+}
