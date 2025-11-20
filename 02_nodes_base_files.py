@@ -1,5 +1,6 @@
 """
-Author: Eszter Bokanyi, e.bokanyi@uva.nl, 2025.05.26.
+Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
+Last modified: 2025.11.20
 
 This file creates node dataframes using GBAPERSOONTAB, GBAADRESOBJECTBUS, KINDOUDERTAB, and GBAOVERLIJDENTAB
 for each year of the person network edgelists.
@@ -220,6 +221,8 @@ nodes = nodes.with_columns(
 ).filter(pl.col("active"))
 
 print("Reading KINDOUDERTAB...")
+# Load parent-child relationship table (most recent version contains all historical data)
+# Path is within CBS Microdata secure environment (G: drive)
 kindoudertab = pl.DataFrame(
         pd.read_spss("G:\\Bevolking\\KINDOUDERTAB\\KINDOUDER2024TABV1.sav",convert_categoricals=False)  
     )\
@@ -258,12 +261,15 @@ nodes = merged_nodes\
         on="label",
         how="left"
     )
-# # Sanity checks
-# print("First: is active node, Second: has birth year")
-# print("\t\t++",sum(nodes["active"]&nodes["birth_year"]))
-# print("\t\t+-",sum(nodes["active"]&pd.isnull(nodes["birth_year"])))
-# print("\t\t--",sum(~nodes["active"]&pd.isnull(nodes["birth_year"])))
-# print("\t\t-+",sum(~nodes["active"]&nodes["birth_year"]))
+
+# Optional sanity check (uncomment to verify data quality):
+# Validates that active nodes have demographic data and inactive nodes don't
+# print("Sanity check - Active nodes vs birth year presence:")
+# print("\t\tActive with birth_year:", sum(nodes["active"] & ~nodes["birth_year"].is_null()))
+# print("\t\tActive without birth_year:", sum(nodes["active"] & nodes["birth_year"].is_null()))
+# print("\t\tInactive without birth_year:", sum(~nodes["active"] & nodes["birth_year"].is_null()))
+# print("\t\tInactive with birth_year:", sum(~nodes["active"] & ~nodes["birth_year"].is_null()))
+
 print("\tDone.")
 
 output = f'{output_folder}\\temp\\base_start_{start_year}_end_{end_year}_year_{year}.csv'

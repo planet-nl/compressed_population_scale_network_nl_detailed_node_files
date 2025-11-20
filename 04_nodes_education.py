@@ -1,3 +1,47 @@
+"""
+Authors: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl, Yuliia Kazmina, y.kazmina@uva.nl
+Last modified: 2025.11.20
+
+This script extracts highest education level data and converts education codes
+to a standardized 4-level classification system across different years.
+
+Education coding systems changed over time:
+- 2009-2012: Uses OPLNRHB codes requiring conversion via reference tables
+- 2013-2018: Uses OPLNIVSOI2016AGG4HBMETNIRWO
+- 2019+: Uses OPLNIVSOI2021AGG4HBmetNIRWO
+
+Input:
+------
+    * HOOGSTEOPLTAB files for the given year
+    * Education conversion tables:
+        - OPLEIDINGSNRREFV34.SAV (education number reference)
+        - CTOREFV12.sav (CTO reference)
+
+Output:
+-------
+    * {output_folder}/temp/education_{year}.csv.gz
+        * label (RINPERSOON)
+        * educ_level (single character: education level code)
+        * educ_weight (weight for education record)
+
+Arguments:
+----------
+    year: Year to process
+    output_folder: Base directory for outputs
+
+Usage:
+------
+    /c/mambaforge/envs/9629/python.exe 04_nodes_education.py 2015 /h/ODISSEI_portal_C
+
+Bash script:
+------------
+
+for year in `seq 2009 2023`
+do
+    /c/mambaforge/envs/9629/python.exe 04_nodes_education.py $year /h/ODISSEI_portal_C
+done
+"""
+
 import pandas as pd
 import polars as pl
 from time import time
@@ -9,17 +53,20 @@ import pyreadstat
 year = int(sys.argv[1])
 output_folder = sys.argv[2]
 
-# conversion
+# Load education code conversion tables (for years 2009-2012)
+# These tables map old OPLNRHB codes to standardized OPLNIVSOI2016AGG4HB codes
+# Path is within CBS Microdata secure environment
 path = 'K:\\Utilities\\Code_Listings\\SSBreferentiebestanden\\'
+
+# First conversion: OPLNR to CTO (Centrale Toelatingsclassificatie Onderwijs)
 conversion_df_1, meta_1 = pyreadstat.read_sav(os.path.join(path,'OPLEIDINGSNRREFV34.SAV'),apply_value_formats=False,usecols = ['OPLNR','CTO2016V'])
-conversion_df_1 = conversion_df_1.drop(0)
+conversion_df_1 = conversion_df_1.drop(0)  # Drop header row
 conversion_df_1.columns = ['OPLNRHB_str','CTO']
-#print(conversion_df_1.head())
 
+# Second conversion: CTO to standardized education level
 conversion_df_2, meta_2 = pyreadstat.read_sav(os.path.join(path,'CTOREFV12.sav'),usecols = ['CTO','OPLNIVSOI2016AGG4HB'])
-#print(conversion_df_2.head())
 
-#print(len(conversion_df_1))
+# Merge conversion tables to create full mapping chain
 conversion_df = conversion_df_1.merge(conversion_df_2, on='CTO',how='left')
 conversion_pl = pl.from_pandas(conversion_df)
 
@@ -74,12 +121,16 @@ conv_column =  {2009: "OPLNIVSOI2016AGG4HB",
                 2023:"OPLNIVSOI2021AGG4HBmetNIRWO",
                 2024:"OPLNIVSOI2021AGG4HBmetNIRWO"}
 
+# Load education data for the given year
+# Note: 2023 uses semicolon separator, other years use default
 if year == 2023:
     education_input = pl.read_csv(educ_files[year], columns = ['RINPERSOON',educ_column[year],'GEWICHTHOOGSTEOPL'],separator=";")
 else:
     education_input = pl.read_csv(educ_files[year], columns = ['RINPERSOON',educ_column[year],'GEWICHTHOOGSTEOPL'])
 print(f"Loaded data for {year}")
 
+# Process education codes based on year
+# Years 2013+ already have standardized codes, just extract first character
 if year > 2012:
     education_input = (
         education_input.
@@ -95,12 +146,15 @@ if year > 2012:
     )
     
 else:
+    # Years 2009-2012: require conversion from OPLNRHB to standardized codes
+    # Zero-pad OPLNRHB codes to 5 digits for consistent joining
     education_input = (education_input
         .with_columns(
             pl.col("OPLNRHB").cast(pl.Utf8).str.zfill(5).alias("OPLNRHB_str")
         )
     )
 
+    # Join with conversion tables to get standardized education level
     education_input = education_input.join(conversion_pl,on="OPLNRHB_str",how="inner")
 
     education_input = (

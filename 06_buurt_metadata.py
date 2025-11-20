@@ -1,5 +1,6 @@
 """
-Author: Eszter, 2024.01.19.
+Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
+Last modified: 2025.11.20
 
 This script gets metadata for the buurten for all years.
 It can be later joined to the location data.
@@ -42,7 +43,8 @@ output_folder = sys.argv[2]
 
 print(f"==================== YEAR {year} ===============================")
 
-# filenames
+# Shapefile names for each year (naming conventions vary)
+# Files are in CBS Microdata utilities folder (K: drive)
 fn_dict = {
     2009 : "bu_2009.shp",
     2010 : "bu_2010.shp",
@@ -62,7 +64,8 @@ fn_dict = {
     2024 : "bu_2024.shp"
 }
 
-# joining filenames and full path
+# Construct full path to shapefile
+# Path is within CBS Microdata utilities folder (K: drive)
 fn = f"K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\{year}\{fn_dict[year]}"
 
 # reading in geopandas file

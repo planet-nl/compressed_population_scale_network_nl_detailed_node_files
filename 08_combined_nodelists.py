@@ -1,5 +1,6 @@
 """
-Author: Eszter, 2024.01.20.
+Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
+Last modified: 2025.11.20
 
 This script merges all previous node attribute files.
 

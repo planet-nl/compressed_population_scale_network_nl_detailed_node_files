@@ -1,5 +1,6 @@
 """
-Author: Eszter, 2025.11.13.
+Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
+Last modified: 2025.11.20
 
 This script gets metadata for the gemeenten for all years.
 It can be later joined to the location data.
@@ -46,6 +47,9 @@ import json
 year = int(sys.argv[1])
 output_folder = sys.argv[2]
 
+# GIN (Gebieden in Nederland) file paths for each year
+# Files are in CBS Microdata utilities folder
+# File format changes over time: SAV (2009-2018), DTA (2019-2020), XLSX (2021+)
 geo_metadata = {
     2009:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2009V2.sav",
     2010:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2010V1.sav",
@@ -83,10 +87,11 @@ if year > 2020:
     name_of_interest = [n.split("|")[0]+"|Naam" for n in var_of_interest_input]
     name_of_interest[-1] = "Stedelijkheid|Omschrijving"
 
-# codebook to fill
+# Initialize codebook to store code-to-name mappings
 codebook = {}
 
-# if spss files
+# Handle SPSS (.sav) files (2009-2018)
+# Need to read twice: once for codes, once for labels
 if fn.split(".")[-1]=="sav":
     # with categorical variables
     df = pd.read_spss(geo_metadata[year],convert_categoricals=False)
@@ -107,10 +112,11 @@ if fn.split(".")[-1]=="sav":
     df["coropgebied"] = df["coropgebied"].astype(int)
     df["stedgem"] = df["stedgem"].astype(int)
 
-    # creating codebook
+    # Create codebook: map codes to human-readable labels
     for c in var_of_interest:
         codebook[c] = {k:v for k,v in set(zip(df[c],df_w_labels[c]))}
-# if stata files
+
+# Handle Stata (.dta) files (2019-2020)
 elif fn.split(".")[-1]=="dta":
     df = pd.read_stata(geo_metadata[year])
     
@@ -149,6 +155,7 @@ elif fn.split(".")[-1]=="dta":
             codebook[c] = codebook[t[c]]
             del codebook[t[c]]
 
+# Handle CSV files (not currently used but included for completeness)
 elif fn.split(".")[-1]=="csv":
     df = pd.read_csv(fn,header=0,index_col=None)
     for c in ["landsdeel","provincie","coropgebied"]:
@@ -160,10 +167,11 @@ elif fn.split(".")[-1]=="csv":
     df["coropgebied"] = df["coropgebied"].astype(int)
     df["stedgem"] = df["stedgem"].astype(int)
 
-    # creating codebook
+    # Create codebook from CSV columns
     for c in var_of_interest:
         codebook[c] = dict(zip(df[c],df[c+"naam"]))
 
+# Handle Excel (.xlsx) files (2021+)
 elif fn.split(".")[-1]=="xlsx":
     df = pd.read_excel(fn)
     df = df.rename(columns = {c : c.strip(" ") for c in df.columns})

@@ -1,5 +1,6 @@
 """
-Author: Eszter, 2025.02.07.
+Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
+Last modified: 2025.11.20
 
 This script gets the location code, thus buurt, wijk, and gemeente
 of the jan 1 address of nodes for a given year.
@@ -49,7 +50,9 @@ output_folder = sys.argv[2]
 
 print(f"YEAR {year}")
 
-# reading all registered addresses from converted csv with polars
+# Read all registered addresses from the most recent converted CSV file
+# Note: Using 2024 file as it contains historical address data for all years
+# Path is within CBS Microdata secure environment (G: drive)
 fn = f"G:\Bevolking\GBAADRESOBJECTBUS\GBAADRESOBJECT2024BUSV1.csv"
 print(f"Reading all addresses from {fn}...")
 nodes_address = pl.read_csv(fn,separator=",")
@@ -66,7 +69,9 @@ nodes_address = nodes_address.filter(
 toc = time()
 print(f"Done in {toc-tic:.1f}s.")
 
-# where are the above address objects located
+# Load address-to-buurt mapping file
+# VSLGWBTAB contains mappings from address object numbers to geographic codes
+# Path is within CBS Microdata secure environment (G: drive)
 print("Reading address lookup file and creating dict...")
 address_to_buurt = pd.read_spss(
     f'G:\BouwenWonen\VSLGWBTAB\VSLGWB2023TAB03V1.sav',

@@ -1,5 +1,6 @@
 """
-Author: Eszter, 2024.03.26.
+Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
+Last modified: 2025.11.20
 
 This script calculates household and individual income and income percentiles.
 
@@ -53,14 +54,15 @@ from scipy.sparse import csr_matrix
 import os
 import re
 
-# argument parsing
+# Parse command-line arguments
 start_year = int(sys.argv[1])
 end_year = int(sys.argv[2])
 year = int(sys.argv[3])
 base_node_data_folder = sys.argv[4]
 output_folder = base_node_data_folder
 
-# inpatab fileliest
+# Build INPATAB (individual income) file list by scanning directory
+# Files contain individual income data (INPP100PBRUT, INPBELI, INPSECJ)
 inpatab_files = {}
 inpatab_path = "G:\\InkomenBestedingen\\INPATAB\\"
 for f in os.listdir(inpatab_path):
@@ -68,7 +70,8 @@ for f in os.listdir(inpatab_path):
     if len(year_match)==1 and "INPA" in f:
         inpatab_files[int(year_match[0])] = os.path.join(inpatab_path,f)
 
-# inhatab filelist
+# Build INHATAB (household income) file list by scanning directory
+# Files contain household income data (INHP100HGEST, INHGESTINKH)
 inhatab_files = {}
 inhatab_path = "G:\\InkomenBestedingen\\INHATAB\\"
 for f in os.listdir(inhatab_path):
@@ -96,12 +99,14 @@ edgelist_rename_cols = {
     "RINPERSOONRELATIE" : "target",
     "RELATIE" : "layer"
 }
-# load household edges
+# Load household edges and filter for non-institutional households
+# Layer 401 represents household members living together (see layers.csv)
+# Layer 402 (institutional households) is excluded
 edgelist = (
     pl.read_csv(network_path,separator=";")
         .select([pl.col(c) for c in edgelist_rename_cols])\
         .rename(edgelist_rename_cols)
-        .filter(pl.col("layer")==401) # non-institutional household members
+        .filter(pl.col("layer")==401) # Layer 401: non-institutional household members
         .with_columns(
                     pl.col("source").cast(pl.Int64),
                     pl.col("target").cast(pl.Int64)
@@ -157,10 +162,12 @@ inhatab_cols = ["RINPERSOONHKW","INHP100HGEST","INHGESTINKH"]
 household_incomes_nodes = pd.read_spss(
     inhatab_file,
     usecols=inhatab_cols,
-    convert_categoricals=False # if this is True, then values such as gender are set to their string values
+    convert_categoricals=False # Keep numeric codes rather than converting to string labels
 )
 household_incomes_nodes.columns = ["label_hkw","income_value","income_percentile"]
-# filtering households with unknown income, and institutional households
+# Filter out invalid records:
+# - Unknown income values are coded as very large numbers (>9.9999e9)
+# - Institutional households have percentile <1
 household_incomes_nodes = household_incomes_nodes[~((household_incomes_nodes["income_value"]>9.9999e9)|(household_incomes_nodes["income_percentile"]<1))]
 print(household_incomes_nodes.head())
 print("Done.")
@@ -185,17 +192,19 @@ percentile_map = dict(zip(household_incomes_nodes["label_hkw"].map(int),househol
 hkw = set(household_incomes_nodes["label_hkw"].map(int))
 
 print("Getting connected components...")
-# connected components of household layer
+# Use graph theory to identify households as connected components
+# Each component represents one household unit
 cc = connected_components(households.A.sign())
 households.nodes = households.nodes.to_pandas()
 
-# adding component label to node dataframe
+# Add household component ID to each person
 households.nodes["household_component"] = cc[1]
-# labelling main earners in node dataframe
+# Mark main earners (hoofdkostwinner - person with household income data)
 households.nodes["is_hkw"] = households.nodes["label"].isin(hkw)
 print("Done.")
 
-# sanity check: household size vs number of main earners from income file
+# Sanity check: analyze household composition
+# This helps identify potential issues with income assignment
 size_vs_earners = pd.DataFrame(households.nodes\
     [households.nodes["active"]]\
     .groupby("household_component")\
@@ -203,18 +212,21 @@ size_vs_earners = pd.DataFrame(households.nodes\
     .value_counts())
 size_vs_earners.reset_index(inplace=True)
 size_vs_earners.rename(columns = {"is_hkw":"earners", "label":"size"},inplace=True)
-# no earners
-# could be the mismatch in time between network amnd income file!
+
+# Display households with no earners (likely due to temporal mismatch)
+# Network data and income data may be from slightly different time points
 print("Households counts per household size with no main earners")
 print(size_vs_earners[size_vs_earners["earners"]==0])
 
-# 
-# multiple earners
+# Display households with multiple earners (will use averaged income)
 print("Households counts per household size with multiple main earners")
 print(size_vs_earners[size_vs_earners["earners"]>1])
 
-# 
-# separating three types of households
+# Categorize households by number of main earners
+# This is necessary because income assignment differs by earner count:
+# - No earners: cannot assign income (temporal mismatch between network and income data)
+# - Single earner: use that earner's income directly
+# - Multiple earners: average their incomes
 
 earner_count = households.nodes\
     [households.nodes["active"]]\
@@ -231,15 +243,17 @@ multiple_earner_households = earner_count\
     .query("is_hkw>=2")
 
 
-# 
-print("Percentage of no earner households our of all households")
+# Calculate and report percentage of households without identified earners
+print("Percentage of no earner households out of all households")
 print(round(100*no_earner_households.shape[0]/len(np.unique(cc[1][households.nodes["active"]])),1))
 
-# 
-# creating average income for multiple earner households
+# For households with multiple earners, calculate average income
+# Average income across all identified earners in the household
 multiple_earner_households["avg_income"] = \
     multiple_earner_households["label"].map(lambda l: np.mean([income_map[elem] for elem in l if elem in income_map]))
-# what is the minimum income in each percentile bin?
+
+# Create lookup table: what is the minimum income threshold for each percentile?
+# This allows us to map the averaged income back to a percentile bin
 percentile_lookup = \
     household_incomes_nodes\
         .groupby("income_percentile")\
@@ -248,20 +262,19 @@ percentile_lookup = \
         .reset_index()
 multiple_earner_households.reset_index(inplace=True)
 
-# looking up percentile corresponding to average income in multiple earner households
+# Map averaged income to corresponding percentile using digitize (binning)
 multiple_earner_households["avg_percentile"] = percentile_lookup["income_percentile"]\
     [np.digitize(
         multiple_earner_households["avg_income"],\
         percentile_lookup["income_value"][1:]
     )].tolist()
 
-# 
-# getting income and percentaile for single earner households based on the data for the single earner
+# For single earner households: use the earner's income and percentile directly
 single_earner_households["income"] = single_earner_households["label"].map(lambda l: [income_map[elem] for elem in l if elem in income_map][0])
 single_earner_households["percentile"] = single_earner_households["label"].map(lambda l: [percentile_map[elem] for elem in l if elem in percentile_map][0])
 
-# 
-# household to income and percentile mappers based on the above two dataframes
+# Create mapping dictionaries: household component ID -> income/percentile
+# Combines both single and multiple earner households
 household_to_income = {
     **dict(zip(single_earner_households.index,single_earner_households.income)),
     **dict(zip(multiple_earner_households["household_component"],multiple_earner_households["avg_income"]))
@@ -271,24 +284,22 @@ household_to_percentile = {
     **dict(zip(multiple_earner_households["household_component"],multiple_earner_households["avg_percentile"]))
 }
 
-# 
-# adding household incomes for all members of the household in the node dataframe
+# Apply household income to all members of each household
 households.nodes["income"] = households.nodes["household_component"]\
 .map(lambda c: household_to_income.get(c,-1) if c is not None else None)
 
-# 
-# adding household income percentiles for all members of the household in the node dataframe
+# Apply household income percentile to all members of each household
 households.nodes["percentile"] = households.nodes["household_component"]\
 .map(lambda c: household_to_percentile.get(c,-1) if c is not None else None)
 
-# 
+# Set income fields to None for inactive nodes (not present in this year)
 inactives = ~households.nodes["active"]
 households.nodes["household_component"][inactives] = None
 households.nodes["income"][inactives] = None
 households.nodes["percentile"][inactives] = None
 households.nodes["is_hkw"][inactives] = None
 
-# 
+# Prepare output dataframe with household income columns
 output = households.nodes[[
     "label",
     "income",

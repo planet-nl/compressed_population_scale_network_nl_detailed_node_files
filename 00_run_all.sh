@@ -1,4 +1,5 @@
-# Author: Eszter Bokanyi, e.bokanyi@uva.nl, 2025.05.26.
+# Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
+# Last modified: 2025.11.20
 
 # This script collects metadata on individuals in the yearly person networks into one single comma-separated
 # table per year. These files can be used as node attribute tables for mlnlib multilayer network objects.
