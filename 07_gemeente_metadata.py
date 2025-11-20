@@ -43,6 +43,7 @@ import pandas as pd
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
 import json
+import numpy as np
 
 year = int(sys.argv[1])
 output_folder = sys.argv[2]
@@ -86,6 +87,8 @@ if year > 2020:
     var_of_interest_input = ["gemeenten|Code", "Landsdelen|Code", "Provincies|Code", "COROP-gebieden|Code", "Stedelijkheid|Code"]
     name_of_interest = [n.split("|")[0]+"|Naam" for n in var_of_interest_input]
     name_of_interest[-1] = "Stedelijkheid|Omschrijving"
+if year == 2021:
+    name_of_interest[0] = name_of_interest[0].lower()
 
 # Initialize codebook to store code-to-name mappings
 codebook = {}
@@ -178,6 +181,8 @@ elif fn.split(".")[-1]=="xlsx":
     print(df.head())
     print(df.columns)
     df = df.rename(columns=dict(zip(var_of_interest_input,var_of_interest)))
+    mask = ~pd.isnull(df["gemeente_code"]) & ~np.isnan(df["gemeente_code"])
+    df = df[mask].copy()
 
 
     for c in ["landsdeel","provincie","coropgebied"]:
@@ -185,6 +190,7 @@ elif fn.split(".")[-1]=="xlsx":
 
     df["gemeente_code"] = "GM" + df["gemeente"].astype(str).str.zfill(4)
     df["landsdeel"] = df["landsdeel"].astype(int).astype(str)
+    df["stedgem"] = df["stedgem"].astype(int).astype(str).str.zfill(1)
     
     # creating codebook
     for c,cc in zip(var_of_interest,name_of_interest):
