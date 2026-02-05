@@ -15,7 +15,7 @@ Input:
     * HOOGSTEOPLTAB files for the given year
     * Education conversion tables:
         - OPLEIDINGSNRREFV34.SAV (education number reference)
-        - CTOREFV12.sav (CTO reference)
+        - CTOREFV13.sav (CTO reference)
 
 Output:
 -------
@@ -64,7 +64,7 @@ conversion_df_1 = conversion_df_1.drop(0)  # Drop header row
 conversion_df_1.columns = ['OPLNRHB_str','CTO']
 
 # Second conversion: CTO to standardized education level
-conversion_df_2, meta_2 = pyreadstat.read_sav(os.path.join(path,'CTOREFV12.sav'),usecols = ['CTO','OPLNIVSOI2016AGG4HB'])
+conversion_df_2, meta_2 = pyreadstat.read_sav(os.path.join(path,'CTOREFV13.sav'),usecols = ['CTO','OPLNIVSOI2016AGG4HB'])
 
 # Merge conversion tables to create full mapping chain
 conversion_df = conversion_df_1.merge(conversion_df_2, on='CTO',how='left')
