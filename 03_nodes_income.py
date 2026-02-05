@@ -84,6 +84,10 @@ for f in os.listdir(inhatab_path):
 inhatab_file = inhatab_files[year]
 inpatab_file = inpatab_files[year]
 network_path = f"G:\\BEVOLKING\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK{year}TABV1.csv"
+# for two files, there's a different separator
+sep = ";"
+if year == 2021 or year == 2023:
+    sep = ","
 nodes_path = f"{base_node_data_folder}\\temp\\base_start_{start_year}_end_{end_year}_year_{year}.csv.gz"
 
 print(f"Loading household connections from {network_path}...")
@@ -103,7 +107,7 @@ edgelist_rename_cols = {
 # Layer 401 represents household members living together (see layers.csv)
 # Layer 402 (institutional households) is excluded
 edgelist = (
-    pl.read_csv(network_path,separator=";")
+    pl.read_csv(network_path,separator=sep,has_header=True)
         .select([pl.col(c) for c in edgelist_rename_cols])\
         .rename(edgelist_rename_cols)
         .filter(pl.col("layer")==401) # Layer 401: non-institutional household members
@@ -187,7 +191,6 @@ print("Done.")
 
 # label to income/percentile dicts
 income_map = dict(zip(household_incomes_nodes["label_hkw"].map(int),household_incomes_nodes["income_value"]))
-percentile_map = dict(zip(household_incomes_nodes["label_hkw"].map(int),household_incomes_nodes["income_percentile"]))
 # set of main earners in households
 hkw = set(household_incomes_nodes["label_hkw"].map(int))
 
@@ -251,27 +254,10 @@ print(round(100*no_earner_households.shape[0]/len(np.unique(cc[1][households.nod
 # Average income across all identified earners in the household
 multiple_earner_households["avg_income"] = \
     multiple_earner_households["label"].map(lambda l: np.mean([income_map[elem] for elem in l if elem in income_map]))
-
-# Create lookup table: what is the minimum income threshold for each percentile?
-# This allows us to map the averaged income back to a percentile bin
-percentile_lookup = \
-    household_incomes_nodes\
-        .groupby("income_percentile")\
-        [["income_value"]]\
-        .min()\
-        .reset_index()
+# what is the minimum income in each percentile bin?
 multiple_earner_households.reset_index(inplace=True)
-
-# Map averaged income to corresponding percentile using digitize (binning)
-multiple_earner_households["avg_percentile"] = percentile_lookup["income_percentile"]\
-    [np.digitize(
-        multiple_earner_households["avg_income"],\
-        percentile_lookup["income_value"][1:]
-    )].tolist()
-
-# For single earner households: use the earner's income and percentile directly
+# getting income for single earner households based on the data for the single earner
 single_earner_households["income"] = single_earner_households["label"].map(lambda l: [income_map[elem] for elem in l if elem in income_map][0])
-single_earner_households["percentile"] = single_earner_households["label"].map(lambda l: [percentile_map[elem] for elem in l if elem in percentile_map][0])
 
 # Create mapping dictionaries: household component ID -> income/percentile
 # Combines both single and multiple earner households
@@ -279,32 +265,31 @@ household_to_income = {
     **dict(zip(single_earner_households.index,single_earner_households.income)),
     **dict(zip(multiple_earner_households["household_component"],multiple_earner_households["avg_income"]))
 }
-household_to_percentile = {
-    **dict(zip(single_earner_households.index,single_earner_households.percentile)),
-    **dict(zip(multiple_earner_households["household_component"],multiple_earner_households["avg_percentile"]))
-}
 
 # Apply household income to all members of each household
 households.nodes["income"] = households.nodes["household_component"]\
 .map(lambda c: household_to_income.get(c,-1) if c is not None else None)
 
-# Apply household income percentile to all members of each household
-households.nodes["percentile"] = households.nodes["household_component"]\
-.map(lambda c: household_to_percentile.get(c,-1) if c is not None else None)
-
-# Set income fields to None for inactive nodes (not present in this year)
+# 
 inactives = ~households.nodes["active"]
 households.nodes["household_component"][inactives] = None
 households.nodes["income"][inactives] = None
-households.nodes["percentile"][inactives] = None
 households.nodes["is_hkw"][inactives] = None
 
 # Prepare output dataframe with household income columns
 output = households.nodes[[
     "label",
     "income",
-    "percentile"
-]].rename(columns = {"income":"household_income","percentile":"household_income_percentile"})
+]].rename(columns = {"income":"household_income"})
+
+s = output["household_income"]
+mask = s.notna()
+n = mask.sum()
+ranks = s[mask].rank(method='first')
+
+output["household_income_percentile"] = pd.Series(index = output.index, dtype="Int64")
+output.loc[mask,"household_income_percentile"] = (((ranks - 1) * 100 // n + 1).astype("Int64"))
+
 
 print("Joining individual income...")
 output.set_index("label",inplace=True)
@@ -313,6 +298,9 @@ output = output.join(individual_incomes_nodes,how="left")
 output.reset_index(inplace=True)
 print(output.head())
 print("Done.")
+
+# print("SANITY CHECK:\n",output["household_income_percentile"].value_counts().sort_index().head())
+
 
 print(f"Saving results to {output_folder}...")
 output.to_csv(os.path.join(output_folder,"temp",f"income_{year}.csv.gz"),index=False,header=True,compression="gzip")
