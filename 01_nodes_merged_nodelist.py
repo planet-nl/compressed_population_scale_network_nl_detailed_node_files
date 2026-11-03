@@ -20,7 +20,7 @@ working_folder
 Inputs:
 -------
 GBAPERSOONTAB files each year between start_year and end_year in CSV format
-files_per_year.json filename and file reading dictionary in same folder
+config.json (and pipeline_config.py) in {working_folder}/src: file names, separators and encodings
 
 Output:
 -------
@@ -34,14 +34,15 @@ import os
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
 import json
+from pipeline_config import load_config, dataset_path, dataset_option
 
 # capturing script arguments
 start_year = int(sys.argv[1])
 end_year = int(sys.argv[2])
 working_folder = sys.argv[3]
 
-# opening configuration file to capture custom file paths
-files_per_year = json.load(open(os.path.join(working_folder,"src","files_per_year.json")))
+# CHG-2026-11: configuration file with file paths, separators and encodings
+cfg = load_config(working_folder)
 
 # creating list of years between start_year and end_year
 year_list = list(range(start_year,end_year+1))
@@ -51,21 +52,19 @@ node_set = list()
 
 for year in year_list:
     print("YEAR",year)
-    # default CSV file name for GBAPERSOONTAB
-    node_file = f"G:\Bevolking\GBAPERSOONTAB\\{year}\geconverteerde data\GBAPERSOON{year}TABV1_csv.csv"
-    # if default name does not exist, read filepath from config file
-    if not os.path.exists(node_file):
-        node_file = files_per_year["node_files"][str(year)][0]
+    # CHG-2026-11: file name (default or year-specific) and separator from config.json
+    node_file = dataset_path(cfg, "gbapersoontab_csv", year)
     print(f"Reading {node_file}...")
-    sep = files_per_year["node_sep"][str(year)]
+    sep = dataset_option(cfg, "gbapersoontab_csv", "sep", year)
     kwargs = dict(
         has_header = True,
         columns = ["RINPERSOON"],
         separator = sep
     )
     # some files have a different encoding
-    if str(year) in files_per_year["node_encoding"]:
-        kwargs["encoding"] = files_per_year["node_encoding"][str(year)]
+    encoding = dataset_option(cfg, "gbapersoontab_csv", "encoding", year)
+    if encoding is not None:
+        kwargs["encoding"] = encoding
 
     # get node dataframe for year
     print("kwargs")
@@ -84,6 +83,6 @@ merged_node_df.rename(columns = {0:"label","index":"id"},inplace=True)
 merged_node_df.head()
 
 # save
-print(f"Saving merged dataframe to " + os.path.join(working_folder,f"merged_node_mapping_{start_year}_{end_year}.csv.gz..."))
+print(f"Saving merged dataframe to " + os.path.join(working_folder,"temp",f"merged_node_mapping_{start_year}_{end_year}.csv.gz")+"...")
 merged_node_df.to_csv(os.path.join(working_folder,"temp",f"merged_node_mapping_{start_year}_{end_year}.csv.gz"),header=True,index=False,compression="gzip")
 print("Done.")

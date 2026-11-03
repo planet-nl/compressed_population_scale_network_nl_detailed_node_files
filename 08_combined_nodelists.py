@@ -1,28 +1,29 @@
 """
 Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
-Last modified: 2025.11.20
+Last modified: 2026.11.03
 
 This script merges all previous node attribute files.
 
 Input:
 ------
-    * year, int
+    * temp files of scripts 02-07 in {working_folder}\\temp
+    * arguments: start_year, end_year, year, working_folder
 
 Output:
 -------
-    * "H:\\shared_data\\nodelists\\combined_{year}.csv.gz
+    * {working_folder}\\yearly_node_files\\nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz
         * has all columns from previous files, plus added location metadata columns
 
 Usage:
 ------
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/05_combined_nodelists.py 2009 2022 2009
+    /c/mambaforge/envs/9629/python.exe 08_combined_nodelists.py 2009 2023 2009 /h/ODISSEI_portal_C
 
 Bash script:
 ------------
 
-for year in `seq 2009 2021`
+for year in `seq 2009 2023`
 do
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/05_combined_nodelists.py 2009 2022 $year
+    /c/mambaforge/envs/9629/python.exe 08_combined_nodelists.py 2009 2023 $year /h/ODISSEI_portal_C
 done
 
 Copying combined nodelists to their final places:
@@ -36,12 +37,10 @@ do
 done
 """
 
-import pandas as pd
 import polars as pl
-import json
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
-import numpy as np
+from pipeline_config import load_config
 from time import time
 import os
 
@@ -53,13 +52,13 @@ end_year = int(sys.argv[2])
 year = int(sys.argv[3])
 output_folder = sys.argv[4]
 
+# CHG-2026-11: first year with income data comes from config.json
+cfg = load_config(output_folder)
+
 
 print(f"YEAR {year}", "start year", start_year, "end_year", end_year)
 
-if year<2011:
-    has_income=False
-else:
-    has_income=True
+has_income = year >= cfg["settings"]["income_first_year"]
 
 if has_income:
     print(f"Year {year} has income data.")

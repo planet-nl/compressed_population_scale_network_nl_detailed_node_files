@@ -6,7 +6,7 @@
 
 # Metadata is on
 #     - basic demographic information (gender, birth year, migrant generation, missing information on parents)
-#     - individual and household income (only after 2011)
+#     - individual and household income (only from 2011 onwards)
 #     - highest education level
 #     - address location up to buurt level
 
@@ -15,6 +15,10 @@
 working_folder="H:\\ODISSEI_portal_C"
 start_year=2009
 end_year=2023
+
+# CHG-2026-11: income_first_year is read from src/config.json
+config_file="$working_folder/src/config.json"
+income_first_year=$(/c/mambaforge/envs/9629/python.exe -c "import json,sys; print(json.load(open(sys.argv[1]))['settings']['income_first_year'])" "$config_file" | tr -d '\r')
 
 log_file="$working_folder/log_messages_$(date +'%Y-%m-%d_%H-%M-%S').log"
 error_file="$working_folder/log_error_$(date +'%Y-%m-%d_%H-%M-%S').log"
@@ -42,8 +46,8 @@ do
     echo -e "==============================\n 02 Yearly base populations. \n==============================" | tee -a $log_file $error_file
     /c/mambaforge/envs/9629/python.exe src/02_nodes_base_files.py $start_year $end_year $year $working_folder >>$log_file 2>>$error_file
     
-    echo -e "==============================\n 03 Income (after 2011). \n==============================" | tee -a $log_file $error_file
-    if [ "$year" -gt 2010 ]; then
+    echo -e "==============================\n 03 Income (from $income_first_year onwards). \n==============================" | tee -a $log_file $error_file
+    if [ "$year" -ge "$income_first_year" ]; then
         /c/mambaforge/envs/9629/python.exe src/03_nodes_income.py $start_year $end_year $year $working_folder >>$log_file 2>>$error_file
     else
         echo -e "Year $year has no income data." | tee -a $log_file $error_file
@@ -65,6 +69,6 @@ do
     /c/mambaforge/envs/9629/python.exe src/08_combined_nodelists.py $start_year $end_year $year $working_folder >>$log_file 2>>$error_file
 done
 
-echo -e "==============================\n 08 Deleting temporary files. \n==============================" | tee -a $log_file $error_file
+echo -e "==============================\n 09 Deleting temporary files. \n==============================" | tee -a $log_file $error_file
 rm -rf $working_folder"/temp"  >>$log_file 2>>$error_file
 echo -e "==============================\n Done. See results in ./yearly_node_files and ./codebook. \n==============================" | tee -a $log_file $error_file

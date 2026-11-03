@@ -1,17 +1,17 @@
 """
 Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
-Last modified: 2025.11.20
+Last modified: 2026.11.03
 
 This script calculates household and individual income and income percentiles.
 
 Input:
 ------
-HUISHOUDENNETWERKTAB files, e.g.
-    "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERKTAB{year}V1.csv"
+HUISGENOTENNETWERKTAB files, e.g.
+    "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK{year}TABV1.csv"
 INHATAB files, e.g.
-    "G:\InkomenBestedingen\INHATAB\INHA{year}TABVx.sav"
+    "G:\\InkomenBestedingen\\INHATAB\\INHA{year}TABVx.sav"
 INPATAB files, e.g.
-    "G:\InkomenBestedingen\INPATAB\INPA{year}TABVx.sav"
+    "G:\\InkomenBestedingen\\INPATAB\\INPA{year}TABVx.sav"
 
 Output:
 -------
@@ -23,28 +23,28 @@ Arguments:
     start_year
     end_year
     year
-    output_folder
+    working_folder
 
 Usage:
 ------
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/02_nodes_income.py 2009 2023 2022 .
+    /c/mambaforge/envs/9629/python.exe 03_nodes_income.py 2009 2023 2022 /h/ODISSEI_portal_C
 
 Bash script:
 ------------
 
 # income data starts in 2011
-for year in `seq 2022 2023`
+for year in `seq 2011 2023`
 do
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/02_nodes_income.py $year
+    /c/mambaforge/envs/9629/python.exe 03_nodes_income.py 2009 2023 $year /h/ODISSEI_portal_C
 done
 """
-# 
 import pandas as pd
 import polars as pl
 import numpy as np
 
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
+from pipeline_config import load_config, dataset_path, dataset_option, scan_year_files
 
 
 from scipy.sparse.csgraph import connected_components
@@ -52,7 +52,6 @@ from mlnlib.mln import MultiLayerNetwork
 from scipy.sparse import csr_matrix
 
 import os
-import re
 
 # Parse command-line arguments
 start_year = int(sys.argv[1])
@@ -61,33 +60,20 @@ year = int(sys.argv[3])
 base_node_data_folder = sys.argv[4]
 output_folder = base_node_data_folder
 
-# Build INPATAB (individual income) file list by scanning directory
-# Files contain individual income data (INPP100PBRUT, INPBELI, INPSECJ)
-inpatab_files = {}
-inpatab_path = "G:\\InkomenBestedingen\\INPATAB\\"
-for f in os.listdir(inpatab_path):
-    year_match = re.findall("[0-9]{4,4}",f)
-    if len(year_match)==1 and "INPA" in f:
-        inpatab_files[int(year_match[0])] = os.path.join(inpatab_path,f)
+# CHG-2026-11: file paths, separators, layer ids come from config.json
+cfg = load_config(base_node_data_folder)
 
-# Build INHATAB (household income) file list by scanning directory
-# Files contain household income data (INHP100HGEST, INHGESTINKH)
-inhatab_files = {}
-inhatab_path = "G:\\InkomenBestedingen\\INHATAB\\"
-for f in os.listdir(inhatab_path):
-    year_match = re.findall("[0-9]{4,4}",f)
-    if len(year_match)==1  and  "INHA" in f:
-        inhatab_files[int(year_match[0])] = os.path.join(inhatab_path,f)
-
-
+# CHG-2026-11: INPATAB (individual income) and INHATAB (household income) file lists, directories in config.json
+# INPATAB files contain individual income data (INPP100PBRUT, INPBELI, INPSECJ)
+inpatab_files = scan_year_files(cfg, "inpatab")
+# INHATAB files contain household income data (INHP100HGEST, INHGESTINKH)
+inhatab_files = scan_year_files(cfg, "inhatab")
 
 inhatab_file = inhatab_files[year]
 inpatab_file = inpatab_files[year]
-network_path = f"G:\\BEVOLKING\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK{year}TABV1.csv"
-# for two files, there's a different separator
-sep = ";"
-if year == 2021 or year == 2023:
-    sep = ","
+# CHG-2026-11: household network file and separator from config.json
+network_path = dataset_path(cfg, "huisgenotennetwerktab", year)
+sep = dataset_option(cfg, "huisgenotennetwerktab", "sep", year)
 nodes_path = f"{base_node_data_folder}\\temp\\base_start_{start_year}_end_{end_year}_year_{year}.csv.gz"
 
 print(f"Loading household connections from {network_path}...")
@@ -110,7 +96,7 @@ edgelist = (
     pl.read_csv(network_path,separator=sep,has_header=True)
         .select([pl.col(c) for c in edgelist_rename_cols])\
         .rename(edgelist_rename_cols)
-        .filter(pl.col("layer")==401) # Layer 401: non-institutional household members
+        .filter(pl.col("layer")==cfg["settings"]["household_member_layer"]) # Layer 401: non-institutional household members
         .with_columns(
                     pl.col("source").cast(pl.Int64),
                     pl.col("target").cast(pl.Int64)
@@ -150,7 +136,7 @@ A = csr_matrix(A>0, dtype=np.uint64)
 del edgelist, ij
 
 # load layers
-layers = pd.read_csv(os.path.join(output_folder,"src","layers.csv"),index_col=None,header=0)
+layers = pd.read_csv(os.path.join(output_folder,"src",cfg["settings"]["layers_file"]),index_col=None,header=0)
 
 # create network object
 households = MultiLayerNetwork(
@@ -234,16 +220,16 @@ print(size_vs_earners[size_vs_earners["earners"]>1])
 earner_count = households.nodes\
     [households.nodes["active"]]\
     .groupby("household_component")\
-    .agg({"label":"count","is_hkw":"sum","label": lambda x: list(x)})
+    .agg({"is_hkw":"sum","label": lambda x: list(x)})  # CHG-2026-11: removed duplicate "label" key
 
 no_earner_households = earner_count\
     .query("is_hkw==0")
 
 single_earner_households = earner_count\
-    .query("is_hkw==1")
+    .query("is_hkw==1").copy()  # CHG-2026-11: copy, since columns are added below
 
 multiple_earner_households = earner_count\
-    .query("is_hkw>=2")
+    .query("is_hkw>=2").copy()  # CHG-2026-11: copy, since columns are added below
 
 
 # Calculate and report percentage of households without identified earners
@@ -254,7 +240,6 @@ print(round(100*no_earner_households.shape[0]/len(np.unique(cc[1][households.nod
 # Average income across all identified earners in the household
 multiple_earner_households["avg_income"] = \
     multiple_earner_households["label"].map(lambda l: np.mean([income_map[elem] for elem in l if elem in income_map]))
-# what is the minimum income in each percentile bin?
 multiple_earner_households.reset_index(inplace=True)
 # getting income for single earner households based on the data for the single earner
 single_earner_households["income"] = single_earner_households["label"].map(lambda l: [income_map[elem] for elem in l if elem in income_map][0])
@@ -270,11 +255,11 @@ household_to_income = {
 households.nodes["income"] = households.nodes["household_component"]\
 .map(lambda c: household_to_income.get(c,-1) if c is not None else None)
 
-# 
+# blank out household attributes of people not active in this year
 inactives = ~households.nodes["active"]
-households.nodes["household_component"][inactives] = None
-households.nodes["income"][inactives] = None
-households.nodes["is_hkw"][inactives] = None
+# CHG-2026-11: was chained assignment (df[col][mask] = None), which does not work under pandas copy-on-write
+for c in ["household_component", "income", "is_hkw"]:
+    households.nodes[c] = households.nodes[c].mask(inactives)
 
 # Prepare output dataframe with household income columns
 output = households.nodes[[
@@ -283,7 +268,9 @@ output = households.nodes[[
 ]].rename(columns = {"income":"household_income"})
 
 s = output["household_income"]
-mask = s.notna()
+# rank only people in households with an identified main earner (excludes the -1 placeholder and inactives)
+has_earner = households.nodes["household_component"].isin(household_to_income.keys())
+mask = s.notna() & has_earner
 n = mask.sum()
 ranks = s[mask].rank(method='first')
 

@@ -62,7 +62,7 @@ working_folder/
 
 **Input:**
 - GBAPERSOONTAB files for each year (CSV format)
-- `files_per_year.json` configuration file to find the correct file paths, separators, and encodings for GBAPERSOONTAB files
+- `config.json` to find the correct file paths, separators, and encodings for GBAPERSOONTAB files
 
 **Output:**
 - `temp/merged_node_mapping_{start_year}_{end_year}.csv.gz`
@@ -91,17 +91,17 @@ working_folder/
 **Columns:**
 - `label`: RINPERSOON identifier
 - `id`: Integer ID from merged mapping
-- `active`: Boolean flag (True if registered and alive on Jan 1 of given year)
+- `active`: Boolean flag (True if registered at an address and alive on Jan 1 of the given year)
 - `gender`: Gender code
 - `birth_year`: Year of birth
 - `migrant_generation`: Migrant generation classification
 - `number_of_parents_from_abroad`: Count (0-2)
-- `missing_mother`: Flag for missing mother record
-- `missing_father`: Flag for missing father record
+- `missing_mother`: 1 if no mother is linked in KINDOUDERTAB (including people absent from KINDOUDERTAB), else 0
+- `missing_father`: 1 if no father is linked in KINDOUDERTAB (including people absent from KINDOUDERTAB), else 0
 
 **Logic:**
 - Determines "active" status based on:
-  - Having a registered address on Dec 31 of previous year
+  - Having a registered address on the reference date (Jan 1 of the target year, see `config.json`)
   - NOT being deceased by Jan 1 of target year
 - Links parent information from KINDOUDERTAB
 
@@ -122,7 +122,7 @@ working_folder/
 **Columns:**
 - `label`: RINPERSOON
 - `household_income`: Household income value
-- `household_income_percentile`: Household income percentile (1-100)
+- `household_income_percentile`: Household income percentile (1-100), empty for households without an identified main earner
 - `individual_income_gross`: Individual gross income
 - `individual_income_percentile`: Individual income percentile
 - `socioeconomic_situation`: Socioeconomic classification
@@ -130,7 +130,9 @@ working_folder/
 **Key Features:**
 - Uses graph theory (connected components) to identify households
 - Handles households with no earners, single earners, and multiple earners
-- For multiple earner households: averages income and maps to percentile
+- For multiple earner households: averages income of the main earners
+- Households with no identified main earner get `household_income = -1` and an empty percentile
+- Percentiles are recomputed over active persons in households with an identified main earner (person-weighted)
 - Filters out institutional households and unknown income values
 
 ### 04_nodes_education.py
@@ -140,7 +142,7 @@ working_folder/
 
 **Input:**
 - HOOGSTEOPLTAB files (varies by year)
-- Education code conversion tables, varying sources depending on year (OPLEIDINGSNRREFV34.SAV, CTOREFV12.sav)
+- Education code conversion tables, varying sources depending on year (OPLEIDINGSNRREFV34.SAV, CTOREFV13.sav)
 
 **Output:**
 - `temp/education_{year}.csv.gz`
@@ -160,7 +162,7 @@ working_folder/
 ### 05_nodes_location.py
 **Links geographic location to buurt level**
 
-**Purpose:** Identifies the buurt, wijk, and gemeente of each person's registered address on Jan 1.
+**Purpose:** Identifies the buurt, wijk, and gemeente of each person's registered address on the reference date (Jan 1 of the target year, see `config.json`).
 
 **Input:**
 - GBAADRESOBJECTBUS (addresses)
@@ -177,7 +179,7 @@ working_folder/
 - `household_change_year`: Year of most recent address change
 
 **Key Features:**
-- Filters addresses valid on Jan 1 of target year
+- Filters addresses valid on the reference date (Jan 1 of the target year, same as in script 02)
 - Generates hierarchical location codes from 8-digit buurt codes
 - Tracks year of last household/address change
 
@@ -260,11 +262,12 @@ working_folder/
 
 ## Configuration Files
 
-### files_per_year.json
-Contains year-specific file paths and parameters:
-- `node_files`: Custom file paths for non-standard GBAPERSOONTAB files
-- `node_sep`: CSV separators (varies: `,`, `;`, `\t`)
-- `node_encoding`: Special character encodings when needed
+### config.json
+Central configuration read by all scripts through `pipeline_config.py` (both files, together with `layers.csv`, have to be in `{working_folder}/src/`):
+- `settings`: `address_reference` (`previous_year_dec31` or `year_jan1`: the date on which addresses are looked up, both for the population in script 02 and the location in script 05), `income_first_year`, `household_member_layer`, `layers_file`
+- `education`: reference table files and the coding periods (which column holds the education level in which years, and whether it needs conversion)
+- `datasets`: per dataset a default `path` (with `{year}`), `overrides` for years with different file names, and `sep` / `encoding` (with `sep_overrides` / `encoding_overrides` per year). Cumulative files (GBAOVERLIJDENTAB, KINDOUDERTAB, GBAADRESOBJECTBUS) have a single path to the latest version. INPATAB and INHATAB are found by scanning a directory.
+- To add a year or a new file version, edit this file only. Places in the code changed to read from the config are marked with `CHG-2026-11`.
 
 ### layers.csv
 Defines network layer structure for multilayer network analysis:
@@ -386,7 +389,7 @@ done
 
 ### Active Node Definition
 A person is considered "active" in year Y if they:
-1. Were registered at an address on Dec 31 of year Y-1
+1. Were registered at an address on the reference date (`settings.address_reference` in `config.json`, default Jan 1 of year Y)
 2. Were NOT deceased by Jan 1 of year Y
 
 ### Known Limitations
@@ -400,12 +403,12 @@ A person is considered "active" in year Y if they:
 ### Common Issues
 
 **Missing files for specific years:**
-- Check `files_per_year.json` for custom paths
+- Check `config.json` for custom paths
 - Verify file naming conventions in CBS Microdata
 - File naming may alter in Microdata RA environment over time
 
 **Encoding errors:**
-- Add year-specific encodings to `files_per_year.json`
+- Add year-specific encodings (`encoding_overrides`) to `config.json`
 - Check file format (some years use different separators)
 
 **Geometric errors in buurt processing:**

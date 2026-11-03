@@ -1,6 +1,6 @@
 """
 Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
-Last modified: 2025.11.20
+Last modified: 2026.11.03
 
 This file creates node dataframes using GBAPERSOONTAB, GBAADRESOBJECTBUS, KINDOUDERTAB, and GBAOVERLIJDENTAB
 for each year of the person network edgelists.
@@ -9,8 +9,8 @@ Prerequisites: "{working_folder}/temp/merged_node_mapping_{start_year}_{end_year
 mapping of the union of all RINPERSOON labels from the GBAPERSOONTAB {start_year}-{end_year} files to integer ids.
 
 For each year, it selects people active in the GBA on 01-01-JJJJ based on whether they were
-registered at any address on this date and it checks. It creates a flag stored in the "active" column of the 
-resulting node dataframe that is True is the person is present in year JJJJ.
+registered at any address on the reference date (see settings.address_reference in config.json). It creates a flag stored in the "active" column of the 
+resulting node dataframe that is True if the person is present in year JJJJ.
 
 Along with this flag, it saves the following columns:
 * gender
@@ -22,11 +22,11 @@ Along with this flag, it saves the following columns:
 
 Input:
 ------
-    * merged_node_mapping_{start_year}_{end_year}.csv.gz (output of 00_nodes_merged_nodelist.py script)
+    * merged_node_mapping_{start_year}_{end_year}.csv.gz (output of 01_nodes_merged_nodelist.py script)
     * GBAPERSOONTAB selected year
-    * GBAADRESOBJECTBUS selected year - 1
-    * GBAOVERLIJDENBUS selected year - 1
-    * KINDOUDERTAB
+    * GBAADRESOBJECTBUS latest available csv file (cumulative)
+    * GBAOVERLIJDENTAB latest available file (cumulative)
+    * KINDOUDERTAB latest available file (cumulative)
 
 Output:
 -------
@@ -37,8 +37,8 @@ Output:
         * birth year
         * migrant generation
         * number of parents from abroad
-        * whether mother has ever been recorded in the GBA
-        * whether father has ever been recorded in the GBA
+        * missing_mother (1 if no mother is linked in KINDOUDERTAB, incl. people not in KINDOUDERTAB)
+        * missing_father (1 if no father is linked in KINDOUDERTAB, incl. people not in KINDOUDERTAB)
 
 Usage:
 ------
@@ -49,7 +49,7 @@ Arguments:
     start_year
     end_year
     actual_year
-    input_folder
+    input_folder (working folder; src/config.json and src/pipeline_config.py are read from here)
     [output_folder]
 
 Bash script:
@@ -65,6 +65,7 @@ import pandas as pd
 import polars as pl
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
+from pipeline_config import load_config, dataset_path, read_addresses_on_reference_date
 import os
 
 # getting arguments
@@ -77,7 +78,10 @@ if len(sys.argv)==6:
 else:
     output_folder = input_folder
 
-# all RINPERSOON labels encoded to integer IDs 2009-2021
+# CHG-2026-11: file paths and reference date come from config.json
+cfg = load_config(input_folder)
+
+# all RINPERSOON labels encoded to integer IDs for start_year-end_year
 merged_nodes = pl.read_csv(
     f"{input_folder}/temp/merged_node_mapping_{start_year}_{end_year}.csv.gz",
     has_header=True
@@ -85,49 +89,13 @@ merged_nodes = pl.read_csv(
 print("MERGED NODE FILE HEAD")
 print(merged_nodes.head())
 
-# some years do not follow the file naming convention
-persoontab_files = {
-    2008 : "G:\\Bevolking\\GBAPERSOONTAB\\2009\\GBAPERSOON2009TABV1.sav",
-    2016 : "G:\\Bevolking\\GBAPERSOONTAB\\2016\\GBAPERSOONTAB2016V1.sav",
-    2018 : "G:\\Bevolking\\GBAPERSOONTAB\\2018\\GBAPERSOON2018TABV2.sav",
-    2020 : "G:\\Bevolking\\GBAPERSOONTAB\\2020\\GBAPERSOON2020TABV3.sav",
-    2022 : "G:\\Bevolking\\GBAPERSOONTAB\\2022\\GBAPERSOON2022TABV2.sav",
-}
-
-overlijdentab_files = {
-    2008: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2009: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2010: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2011: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2012: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2013: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2014: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2015: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2016: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2017: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2018: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2019: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2020: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2021: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav", 
-    2022: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2022\\GBAOVERLIJDEN2022TABV1.sav",
-    2023: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2023\\GBAOVERLIJDEN2023TABV1.sav",
-    2024: "G:\\Bevolking\\GBAOVERLIJDENTAB\\2024\\GBAOVERLIJDEN2024TABV1.sav"
-}
-
-objectbus_files = {
-    2008 : "G:\\Bevolking\\GBAADRESOBJECTBUS\\GBAADRESOBJECT2009BUSV1.sav"
-}
-
 print("========================================")
 print(f"YEAR: {year}")
 print("========================================")
 # columns from the GBAPERSOONTAB
 print("Reading GBAPERSOONTAB...")
 gbapersoontab_cols = ["RINPERSOON", "GBAGENERATIE", "GBAGESLACHT", "GBAAANTALOUDERSBUITENLAND","GBAGEBOORTEJAAR"]
-if year not in persoontab_files.keys():
-    fn =  f'G:\Bevolking\GBAPERSOONTAB\{year}\GBAPERSOON{year}TABV1.sav' # terugzetten naar TABV1
-else:
-    fn  = persoontab_files[year]
+fn = dataset_path(cfg, "gbapersoontab_sav", year)  # CHG-2026-11: was hard-coded dict
 
 print(f"\t... from file {fn}")
 
@@ -141,49 +109,37 @@ try:
     )
 except FileNotFoundError:
     print(f"YEAR {year}: No file {fn} found!")
+    raise  # CHG-2026-11
 
-# rename columns to human readable
-nodes.columns = ["label", "gender", "number_of_parents_from_abroad","migrant_generation", "birth_year"]
+# rename columns to human readable; # CHG-2026-11: by column name, was positional
+nodes = nodes.rename({
+    "RINPERSOON": "label",
+    "GBAGESLACHT": "gender",
+    "GBAAANTALOUDERSBUITENLAND": "number_of_parents_from_abroad",
+    "GBAGENERATIE": "migrant_generation",
+    "GBAGEBOORTEJAAR": "birth_year"
+})
 print("\tFILE HEAD")
 nodes = nodes.with_columns(pl.col("label").cast(pl.Int32))
 print(nodes.head())
 print("\tDone.")
 
-# who was registered at an address at JJJJ-01-01
-print("\tReading GBAADRESBUS...")
-if year-1 not in objectbus_files:
-    fn = f'G:\Bevolking\GBAADRESOBJECTBUS\GBAADRESOBJECT{year-1}BUSV1.sav'
-else:
-    fn = objectbus_files[year-1]
-
-nodes_address = pl.DataFrame(
-    pd.read_spss(
-        fn,
-        convert_categoricals=False # if this is True, then values such as gender are set to their string values
-    )
-)
-print("\tDone.")
-print("\tFiltering population on previous year's dec 31 from ADRESBUS...")
+# who was registered at an address on the reference date (1 Jan of year or 31 Dec of year-1, see config.json; default 1 Jan)
+# CHG-2026-11: addresses come from the latest GBAADRESOBJECTBUS csv, through the same function that script 05 uses
+print("\tReading GBAADRESOBJECTBUS and filtering population on the reference date...")
 population_jan1_tentative = set(
-    nodes_address\
-        .filter(
-            (pl.col('GBADATUMEINDEADRESHOUDING') >= f"{year-1}1231") & \
-            (pl.col("GBADATUMAANVANGADRESHOUDING") <= f"{year-1}1231"))\
-        .with_columns(
-            pl.col("RINPERSOON").cast(pl.Int32)
-        )\
-        .get_column("RINPERSOON")\
+    read_addresses_on_reference_date(cfg, year)
+        .with_columns(pl.col("RINPERSOON").cast(pl.Int32))
+        .get_column("RINPERSOON")
         .to_list()
 )
-del nodes_address
 print("\tDone.")
 
-# reading latest death tab (2024)
+# reading latest death tab
 # it should contain the data form the earlier years
-last_year = max(list(overlijdentab_files.keys()))
-fn = overlijdentab_files[last_year]
+fn = dataset_path(cfg, "gbaoverlijdentab")  # CHG-2026-11: latest cumulative file, from config.json
 
-print(f"Reading OVERLIJDENTAB year {last_year}, from file name {fn}...")
+print(f"Reading OVERLIJDENTAB from file name {fn}...")
 overlijdentab = pl.DataFrame(
     pd.read_spss(
         fn,
@@ -195,7 +151,7 @@ print("\tSelecting those who died up until the given year's 1 Jan...")
 # dead before 0101
 dead = set(
     overlijdentab\
-        .filter(pl.col('GBADatumOverlijden') <= f"{year}0101")\
+        .filter(pl.col('GBADatumOverlijden').cast(pl.String) <= f"{year}0101")\
         .with_columns(pl.col("RINPERSOON").cast(pl.Int32))\
         .get_column("RINPERSOON").to_list()
 )
@@ -224,7 +180,7 @@ print("Reading KINDOUDERTAB...")
 # Load parent-child relationship table (most recent version contains all historical data)
 # Path is within CBS Microdata secure environment (G: drive)
 kindoudertab = pl.DataFrame(
-        pd.read_spss("G:\\Bevolking\\KINDOUDERTAB\\KINDOUDER2024TABV1.sav",convert_categoricals=False)  
+        pd.read_spss(dataset_path(cfg, "kindoudertab"),convert_categoricals=False)  
     )\
     .filter(pl.col("RINPERSOONS")=="R")\
     .with_columns(
@@ -242,8 +198,9 @@ print(kindoudertab.head())
 nodes = nodes\
     .join(kindoudertab,on="label",how="left")\
     .with_columns(
-        pl.col("missing_mother").fill_null(0).cast(pl.Int8),
-        pl.col("missing_father").fill_null(0).cast(pl.Int8),
+        # people not in KINDOUDERTAB have no linked parents, so both parents count as missing
+        pl.col("missing_mother").fill_null(1).cast(pl.Int8),
+        pl.col("missing_father").fill_null(1).cast(pl.Int8),
         pl.col("birth_year").cast(pl.Int16),
         pl.col("gender").cast(pl.Int8),
         pl.col("number_of_parents_from_abroad").cast(pl.Int8),

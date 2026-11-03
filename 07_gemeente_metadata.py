@@ -1,6 +1,6 @@
 """
 Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
-Last modified: 2025.11.20
+Last modified: 2026.11.03
 
 This script gets metadata for the gemeenten for all years.
 It can be later joined to the location data.
@@ -12,8 +12,8 @@ Input:
 Output:
 -------
     * gemeente dataframe and codebook as json saved in 
-            "H:\\shared_data\\nodelists\\location_metadata_{year}.csv.gz", and
-            "H:\\shared_data\\nodelists\\location_metadata_codebook_{year}.json"
+            {working_folder}\\temp\\gemeente_metadata_{year}.csv.gz, and
+            {working_folder}\\codebook\\gemeente_metadata_codebook_{year}.json
         * "gemeente"
         * "landsdeel"
         * "provincie"
@@ -25,15 +25,15 @@ Output:
 
 Usage:
 ------
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/04_nodes_location_metadata.py 2022
-        * first argument is year
+    /c/mambaforge/envs/9629/python.exe 07_gemeente_metadata.py 2022 /h/ODISSEI_portal_C
+        * first argument is year, second is working_folder
 
 Bash script:
 ------------
 
-for year in `seq 2022 2023`
+for year in `seq 2009 2023`
 do
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/04_gemeente_metadata.py $year
+    /c/mambaforge/envs/9629/python.exe 07_gemeente_metadata.py $year /h/ODISSEI_portal_C
 done
 
 """
@@ -42,38 +42,22 @@ done
 import pandas as pd
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
+from pipeline_config import load_config, dataset_path
 import json
 import numpy as np
 
 year = int(sys.argv[1])
 output_folder = sys.argv[2]
 
-# GIN (Gebieden in Nederland) file paths for each year
+# GIN (Gebieden in Nederland) file path of the year comes from config.json # CHG-2026-11
 # Files are in CBS Microdata utilities folder
 # File format changes over time: SAV (2009-2018), DTA (2019-2020), XLSX (2021+)
-geo_metadata = {
-    2009:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2009V2.sav",
-    2010:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2010V1.sav",
-    2011:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2011V1.sav",
-    2012:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2012V1.sav",
-    2013:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2013V1.sav",
-    2014:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2014V1.sav",
-    2015:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2015V1.sav",
-    2016:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2016V1.sav",
-    2017:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2017V1.sav",
-    2018:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2018V1.sav",
-    2019:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\geconverteerde bestanden\\GIN2019V1.dta",
-    2020:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\geconverteerde bestanden\\GIN2020V1.dta",
-    2021:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2021.xlsx",
-    2022:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2022.xlsx",
-    2023:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2023.xlsx",
-    2024:"K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2024.xlsx"
-}
+cfg = load_config(output_folder)
 
 print(f"==================== YEAR {year} ===============================")
 
 # filename
-fn = geo_metadata[year]
+fn = dataset_path(cfg, "gin", year)
 
 # selected variables
 var_of_interest = ["gemeente_code","landsdeel","provincie","coropgebied","stedgem"]
@@ -97,10 +81,10 @@ codebook = {}
 # Need to read twice: once for codes, once for labels
 if fn.split(".")[-1]=="sav":
     # with categorical variables
-    df = pd.read_spss(geo_metadata[year],convert_categoricals=False)
+    df = pd.read_spss(fn,convert_categoricals=False)
 
     # with labels
-    df_w_labels = pd.read_spss(geo_metadata[year],convert_categoricals=True) 
+    df_w_labels = pd.read_spss(fn,convert_categoricals=True) 
 
     if year==2014:
         df.rename(columns={c:c.lower() for c in df.columns},inplace=True)
@@ -121,7 +105,7 @@ if fn.split(".")[-1]=="sav":
 
 # Handle Stata (.dta) files (2019-2020)
 elif fn.split(".")[-1]=="dta":
-    df = pd.read_stata(geo_metadata[year])
+    df = pd.read_stata(fn)
     
     if year < 2019:
         df["gemeente_code"] = "GM" + df["gemeente"].astype(str)

@@ -1,31 +1,29 @@
 """
 Author: Eszter Bokanyi, e.bokanyi@liacs.leidenuniv.nl
-Last modified: 2025.11.20
+Last modified: 2026.11.03
 
 This script gets metadata for the buurten for all years.
 It can be later joined to the location data.
 
 Input:
 ------
-    * 
+    * GIS shapefiles from "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\{year}\\"
 
 Output:
 -------
-    * buurt dataframe
-            "H:\\shared_data\\nodelists\\location_metadata_{year}.csv.gz", and
-            
+    * buurt dataframe saved in {working_folder}\\temp\\buurt_metadata_{year}.csv.gz
 
 Usage:
 ------
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/04_buurt_metadata.py 2009
-        * first argument is year
+    /c/mambaforge/envs/9629/python.exe 06_buurt_metadata.py 2009 /h/ODISSEI_portal_C
+        * first argument is year, second is working_folder
 
 Bash script:
 ------------
 
-for year in `seq 2022 2023`
+for year in `seq 2009 2023`
 do
-    /c/mambaforge/envs/9629/python.exe /h/ebyi/04_buurt_metadata.py $year
+    /c/mambaforge/envs/9629/python.exe 06_buurt_metadata.py $year /h/ODISSEI_portal_C
 done
 
 """
@@ -36,6 +34,7 @@ import geopandas as gpd
 import numpy as np
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
+from pipeline_config import load_config, dataset_path
 
 
 year = int(sys.argv[1])
@@ -43,30 +42,9 @@ output_folder = sys.argv[2]
 
 print(f"==================== YEAR {year} ===============================")
 
-# Shapefile names for each year (naming conventions vary)
-# Files are in CBS Microdata utilities folder (K: drive)
-fn_dict = {
-    2009 : "bu_2009.shp",
-    2010 : "bu_2010.shp",
-    2011 : "bu_2011.shp",
-    2012 : "bu_2012.shp",
-    2013 : "buurt_2013.shp",
-    2014 : "buurt_2014.shp",
-    2015 : "buurt_2015.shp",
-    2016 : "buurt_2016.shp",
-    2017 : "buurt_2017.shp",
-    2018 : "buurt2018.shp",
-    2019 : "buurt_2019_v1.shp",
-    2020 : "bu_2020.shp",
-    2021 : "bu_2021.shp",
-    2022 : "bu_2022.shp",
-    2023 : "bu_2023.shp",
-    2024 : "bu_2024.shp"
-}
-
-# Construct full path to shapefile
-# Path is within CBS Microdata utilities folder (K: drive)
-fn = f"K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\{year}\{fn_dict[year]}"
+# CHG-2026-11: shapefile path of the year (naming conventions vary, see config.json)
+cfg = load_config(output_folder)
+fn = dataset_path(cfg, "gis_buurt", year)
 
 # reading in geopandas file
 gdf = gpd.read_file(fn)
