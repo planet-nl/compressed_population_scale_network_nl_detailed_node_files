@@ -9,7 +9,7 @@ layer_id,layer,label,group,label_long,binary
 7,506,schoolmate-wo,school,schoolmate-wo: schoolmate-wo,128
 8,101,neighbor-next-door,neighbor,neighbor-next-door: neighbor-next-door,256
 9,102,neighbor-neighborhood,neighbor,neighbor-neighborhood: neighbor-neighborhood,512
-10,201,colleauge,colleauge,colleauge: colleauge,1024
+10,201,colleague,colleague,colleague: colleague,1024
 11,301,parent,family,parent: parent,2048
 12,302,co-parent,family,co-parent: co-parent,4096
 13,303,grandparent,family,grandparent: grandparent,8192

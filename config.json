@@ -1,0 +1,191 @@
+{
+    "_comment": "Central configuration of the node file pipeline. Paths may contain {year}. A dataset has a default `path`, and `overrides` for years that do not follow it; `sep`/`encoding` have a default and `*_overrides` per year. Used through pipeline_config.py.",
+    "settings": {
+        "address_reference": "year_jan1",
+        "address_reference_options": [
+            "previous_year_dec31",
+            "year_jan1"
+        ],
+        "income_first_year": 2011,
+        "household_member_layer": 401,
+        "layers_file": "layers.csv"
+    },
+    "education": {
+        "conversion_dir": "K:\\Utilities\\Code_Listings\\SSBreferentiebestanden\\",
+        "oplnr_to_cto_file": "OPLEIDINGSNRREFV34.SAV",
+        "cto_to_level_file": "CTOREFV13.sav",
+        "periods": [
+            {
+                "from": 2009,
+                "to": 2012,
+                "needs_conversion": true,
+                "column": "OPLNRHB",
+                "converted_column": "OPLNIVSOI2016AGG4HB"
+            },
+            {
+                "from": 2013,
+                "to": 2018,
+                "needs_conversion": false,
+                "column": "OPLNIVSOI2016AGG4HBMETNIRWO"
+            },
+            {
+                "from": 2019,
+                "to": 9999,
+                "needs_conversion": false,
+                "column": "OPLNIVSOI2021AGG4HBmetNIRWO"
+            }
+        ]
+    },
+    "datasets": {
+        "gbapersoontab_csv": {
+            "path": "G:\\Bevolking\\GBAPERSOONTAB\\{year}\\geconverteerde data\\GBAPERSOON{year}TABV1_csv.csv",
+            "overrides": {
+                "2016": "G:\\Bevolking\\GBAPERSOONTAB\\2016\\geconverteerde data\\GBAPERSOONTAB2016V1.csv",
+                "2017": "G:\\Bevolking\\GBAPERSOONTAB\\2017\\geconverteerde data\\GBAPERSOON2017TABV1.csv",
+                "2018": "G:\\Bevolking\\GBAPERSOONTAB\\2018\\geconverteerde data\\GBAPERSOON2018TABV2.csv",
+                "2019": "G:\\Bevolking\\GBAPERSOONTAB\\2019\\geconverteerde data\\GBAPERSOON2019TABV1.csv",
+                "2020": "G:\\Bevolking\\GBAPERSOONTAB\\2020\\geconverteerde data\\GBAPERSOON2020TABV3.csv",
+                "2021": "G:\\Bevolking\\GBAPERSOONTAB\\2021\\geconverteerde data\\GBAPERSOON2021TABV1.csv",
+                "2022": "G:\\Bevolking\\GBAPERSOONTAB\\2022\\geconverteerde data\\GBAPERSOON2022TABV2.csv",
+                "2023": "G:\\Bevolking\\GBAPERSOONTAB\\2023\\geconverteerde data\\GBAPERSOON2023TABV1.csv",
+                "2024": "G:\\Bevolking\\GBAPERSOONTAB\\2024\\GBAPERSOON2024TABV2.sav"
+            },
+            "sep": ",",
+            "sep_overrides": {
+                "2016": ";",
+                "2017": "\t",
+                "2018": ";",
+                "2019": ";",
+                "2020": ";",
+                "2021": ";",
+                "2023": ";"
+            },
+            "encoding_overrides": {
+                "2021": "latin"
+            }
+        },
+        "gbapersoontab_sav": {
+            "path": "G:\\Bevolking\\GBAPERSOONTAB\\{year}\\GBAPERSOON{year}TABV1.sav",
+            "overrides": {
+                "2016": "G:\\Bevolking\\GBAPERSOONTAB\\2016\\GBAPERSOONTAB2016V1.sav",
+                "2018": "G:\\Bevolking\\GBAPERSOONTAB\\2018\\GBAPERSOON2018TABV2.sav",
+                "2020": "G:\\Bevolking\\GBAPERSOONTAB\\2020\\GBAPERSOON2020TABV3.sav",
+                "2022": "G:\\Bevolking\\GBAPERSOONTAB\\2022\\GBAPERSOON2022TABV2.sav"
+            }
+        },
+        "gbaoverlijdentab": {
+            "_comment": "cumulative file: always use the latest version",
+            "path": "G:\\Bevolking\\GBAOVERLIJDENTAB\\2024\\GBAOVERLIJDEN2024TABV1.sav"
+        },
+        "kindoudertab": {
+            "_comment": "cumulative file: always use the latest version",
+            "path": "G:\\Bevolking\\KINDOUDERTAB\\KINDOUDER2024TABV1.sav"
+        },
+        "gbaadresobjectbus": {
+            "_comment": "cumulative file: always use the latest version, csv is faster than sav",
+            "path": "G:\\Bevolking\\GBAADRESOBJECTBUS\\GBAADRESOBJECT2024BUSV1.csv",
+            "sep": ","
+        },
+        "huisgenotennetwerktab": {
+            "path": "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK{year}TABV1.csv",
+            "sep": ";",
+            "sep_overrides": {
+                "2021": ",",
+                "2023": ","
+            }
+        },
+        "inpatab": {
+            "_comment": "directory is scanned for the file whose name contains `tag` and one 4-digit year",
+            "dir": "G:\\InkomenBestedingen\\INPATAB\\",
+            "tag": "INPA"
+        },
+        "inhatab": {
+            "_comment": "directory is scanned for the file whose name contains `tag` and one 4-digit year",
+            "dir": "G:\\InkomenBestedingen\\INHATAB\\",
+            "tag": "INHA"
+        },
+        "hoogsteopltab": {
+            "path": "G:\\Onderwijs\\HOOGSTEOPLTAB\\{year}\\HOOGSTEOPL{year}TABV2.csv",
+            "overrides": {
+                "2009": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2009\\120619 HOOGSTEOPLTAB 2009V1.csv",
+                "2010": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2010\\120918 HOOGSTEOPLTAB 2010V1.csv",
+                "2011": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2011\\130924 HOOGSTEOPLTAB 2011V1.csv",
+                "2012": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2012\\141020 HOOGSTEOPLTAB 2012V1.csv",
+                "2013": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2013\\HOOGSTEOPL2013TABV3.csv",
+                "2014": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2014\\HOOGSTEOPL2014TABV3.csv",
+                "2015": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2015\\HOOGSTEOPL2015TABV3.csv",
+                "2016": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2016\\HOOGSTEOPL2016TABV2.csv",
+                "2017": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2017\\HOOGSTEOPL2017TABV3.csv",
+                "2018": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2018\\HOOGSTEOPL2018TABV3.csv",
+                "2019": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2019\\HOOGSTEOPL2019TABV2.csv",
+                "2020": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2020\\HOOGSTEOPL2020TABV2.csv",
+                "2021": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2021\\HOOGSTEOPL2021TABV2.csv",
+                "2022": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2022\\HOOGSTEOPL2022TABV2.csv",
+                "2023": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2023\\HOOGSTEOPL2023TABV2.csv",
+                "2024": "G:\\Onderwijs\\HOOGSTEOPLTAB\\2024\\HOOGSTEOPL2024TABV1.csv"
+            },
+            "sep": ",",
+            "sep_overrides": {
+                "2023": ";"
+            }
+        },
+        "vslgwbtab": {
+            "_comment": "address object -> buurt code; contains one bc{year} column per year",
+            "path": "G:\\BouwenWonen\\VSLGWBTAB\\VSLGWB2023TAB03V1.sav"
+        },
+        "gis_buurt": {
+            "path": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\{year}\\bu_{year}.shp",
+            "overrides": {
+                "2013": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\2013\\buurt_2013.shp",
+                "2014": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\2014\\buurt_2014.shp",
+                "2015": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\2015\\buurt_2015.shp",
+                "2016": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\2016\\buurt_2016.shp",
+                "2017": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\2017\\buurt_2017.shp",
+                "2018": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\2018\\buurt2018.shp",
+                "2019": "K:\\Utilities\\Tools\\GISHulpbestanden\\Gemeentewijkbuurt\\2019\\buurt_2019_v1.shp"
+            }
+        },
+        "gin": {
+            "_comment": "file format (sav/dta/xlsx/csv) is derived from the extension",
+            "path": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN{year}.xlsx",
+            "overrides": {
+                "2009": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2009V2.sav",
+                "2010": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2010V1.sav",
+                "2011": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2011V1.sav",
+                "2012": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2012V1.sav",
+                "2013": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2013V1.sav",
+                "2014": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2014V1.sav",
+                "2015": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2015V1.sav",
+                "2016": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2016V1.sav",
+                "2017": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2017V1.sav",
+                "2018": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\GIN2018V1.sav",
+                "2019": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\geconverteerde bestanden\\GIN2019V1.dta",
+                "2020": "K:\\Utilities\\HULPbestanden\\GebiedeninNederland\\geconverteerde bestanden\\GIN2020V1.dta"
+            }
+        }
+    },
+    "edge_files": {
+        "_comment": "not used by the node file pipeline;",
+        "2009": [
+            "H:\\shared_data\\misc\\BURENNETWERK2009TABV1.csv",
+            "G:\\Bevolking\\COLLEGANETWERKTAB\\COLLEGANETWERK2009TABV2.csv",
+            "G:\\Bevolking\\FAMILIENETWERKTAB\\FAMILIENETWERK2009TABV1.csv",
+            "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK2009TABV1.csv",
+            "G:\\Bevolking\\KLASGENOTENNETWERKTAB\\KLASGENOTENNETWERK2009TABV1.csv"
+        ],
+        "2022": [
+            "G:\\Bevolking\\BURENNETWERKTAB\\geconverteerde data\\BURENNETWERK2022TABV1.csv",
+            "G:\\Bevolking\\COLLEGANETWERKTAB\\COLLEGANETWERK2022TABV2.csv",
+            "G:\\Bevolking\\FAMILIENETWERKTAB\\geconverteerde data\\FAMILIENETWERK2022TABV1.csv",
+            "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK2022TABV1.csv",
+            "G:\\Bevolking\\KLASGENOTENNETWERKTAB\\geconverteerde data\\KLASGENOTENNETWERK2022TABV1.csv"
+        ],
+        "2023": [
+            "G:\\Bevolking\\BURENNETWERKTAB\\BURENNETWERK2023TABV1.csv",
+            "H:\\shared_data\\misc\\COLLEGANETWERK2023TABV1.csv",
+            "G:\\Bevolking\\FAMILIENETWERKTAB\\FAMILIENETWERK2023TABV1.csv",
+            "G:\\Bevolking\\HUISGENOTENNETWERKTAB\\HUISGENOTENNETWERK2023TABV1.csv",
+            "G:\\Bevolking\\KLASGENOTENNETWERKTAB\\KLASGENOTENNETWERK2023TABV1.csv"
+        ]
+    }
+}
