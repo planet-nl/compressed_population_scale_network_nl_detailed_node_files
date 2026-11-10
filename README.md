@@ -31,6 +31,7 @@ The pipeline follows a sequential processing approach:
 
 ```
 working_folder/
+├── src/                        # Scripts, config.json, pipeline_config.py, layers.csv
 ├── yearly_node_files/          # Final output files
 │   └── nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz
 ├── codebook/                   # Metadata codebooks
@@ -54,6 +55,7 @@ working_folder/
 - `working_folder`: Base directory for all operations (e.g., `H:\ODISSEI_portal_C`)
 - `start_year`: First year to process (e.g., 2009)
 - `end_year`: Last year to process (e.g., 2023)
+- Everything else (file paths, reference date, first income year) is in `src/config.json`, see [Configuration Files](#configuration-files)
 
 ### 01_nodes_merged_nodelist.py
 **Creates unified node ID mapping**
@@ -81,9 +83,9 @@ working_folder/
 **Input:**
 - `merged_node_mapping_{start_year}_{end_year}.csv.gz` (from script 01)
 - GBAPERSOONTAB (current year)
-- GBAADRESOBJECTBUS (previous year)
-- GBAOVERLIJDENTAB (latest available)
-- KINDOUDERTAB (parent-child relationships)
+- GBAADRESOBJECTBUS (latest available csv, cumulative)
+- GBAOVERLIJDENTAB (latest available, cumulative)
+- KINDOUDERTAB (parent-child relationships, latest available, cumulative)
 
 **Output:**
 - `temp/base_start_{start_year}_end_{end_year}_year_{year}.csv.gz`
@@ -91,7 +93,7 @@ working_folder/
 **Columns:**
 - `label`: RINPERSOON identifier
 - `id`: Integer ID from merged mapping
-- `active`: Boolean flag (True if registered at an address and alive on Jan 1 of the given year)
+- `active`: Boolean flag (True if registered at an address on the reference date and alive on Jan 1 of the given year)
 - `gender`: Gender code
 - `birth_year`: Year of birth
 - `migrant_generation`: Migrant generation classification
@@ -103,7 +105,8 @@ working_folder/
 - Determines "active" status based on:
   - Having a registered address on the reference date (Jan 1 of the target year, see `config.json`)
   - NOT being deceased by Jan 1 of target year
-- Links parent information from KINDOUDERTAB
+- Links parent information from KINDOUDERTAB; persons without any record there get `missing_mother = missing_father = 1`
+- The address filter is shared with script 05 (`pipeline_config.py`)
 
 ### 03_nodes_income.py
 **Calculates household and individual income** (years 2011+)
@@ -124,7 +127,7 @@ working_folder/
 - `household_income`: Household income value
 - `household_income_percentile`: Household income percentile (1-100), empty for households without an identified main earner
 - `individual_income_gross`: Individual gross income
-- `individual_income_percentile`: Individual income percentile
+- `individual_income_percentile`: Individual income percentile (CBS value from INPATAB)
 - `socioeconomic_situation`: Socioeconomic classification
 
 **Key Features:**
@@ -142,7 +145,7 @@ working_folder/
 
 **Input:**
 - HOOGSTEOPLTAB files (varies by year)
-- Education code conversion tables, varying sources depending on year (OPLEIDINGSNRREFV34.SAV, CTOREFV13.sav)
+- Education code conversion tables for 2009-2012 only (OPLEIDINGSNRREFV34.SAV, CTOREFV13.sav)
 
 **Output:**
 - `temp/education_{year}.csv.gz`
@@ -165,8 +168,8 @@ working_folder/
 **Purpose:** Identifies the buurt, wijk, and gemeente of each person's registered address on the reference date (Jan 1 of the target year, see `config.json`).
 
 **Input:**
-- GBAADRESOBJECTBUS (addresses)
-- VSLGWBTAB (address to buurt mapping)
+- GBAADRESOBJECTBUS (addresses, latest available csv)
+- VSLGWBTAB (address to buurt mapping, column `bc{year}`)
 
 **Output:**
 - `temp/location_{year}.csv.gz`
@@ -270,7 +273,7 @@ Central configuration read by all scripts through `pipeline_config.py` (both fil
 - To add a year or a new file version, edit this file only. Places in the code changed to read from the config are marked with `CHG-2026-11`.
 
 ### layers.csv
-Defines network layer structure for multilayer network analysis:
+Defines network layer structure for multilayer network analysis (read by script 03):
 - Household connections (401, 402)
 - School connections (501-506)
 - Neighbor connections (101, 102)
@@ -284,9 +287,9 @@ Defines network layer structure for multilayer network analysis:
 | File | Description | Frequency |
 |------|-------------|-----------|
 | GBAPERSOONTAB | Person demographics | Yearly |
-| GBAADRESOBJECTBUS | Address registrations | Yearly |
+| GBAADRESOBJECTBUS | Address registrations | Latest file (cumulative) |
 | GBAOVERLIJDENTAB | Death records | Updated yearly (cumulative) |
-| KINDOUDERTAB | Parent-child relationships | Single file (2024) |
+| KINDOUDERTAB | Parent-child relationships | Latest file (cumulative) |
 | HUISGENOTENNETWERKTAB | Household networks | Yearly |
 | INHATAB | Household income | Yearly (2011+) |
 | INPATAB | Individual income | Yearly (2011+) |
@@ -312,7 +315,9 @@ Defines network layer structure for multilayer network analysis:
   - `scipy`
   - `geopandas`
   - `pyreadstat`
+  - `openpyxl` (script 07, GIN xlsx files)
   - `mlnlib` (for network analysis)
+  - `matplotlib` (only for `compare_node_files.ipynb`)
 
 ### Computational Requirements
 - Large memory capacity (population-scale data)
@@ -355,6 +360,10 @@ for year in $(seq 2009 2023); do
 done
 ```
 
+### Comparing two runs
+
+`compare_node_files.ipynb` compares the yearly node files of a new run with a previous run, variable by variable (schema, population, share of changed values, distributions, sanity checks). Set the two folders and the years in its first cell. It only prints aggregated results.
+
 ## Output Files
 
 ### Final Node Files
@@ -394,26 +403,10 @@ A person is considered "active" in year Y if they:
 
 ### Known Limitations
 - Household income assignments may have temporal mismatches
-- Some households have no identified main earners
+- Some households have no identified main earners (`household_income = -1`, empty percentile)
+- `missing_mother` / `missing_father` are 1 also for persons who are not in KINDOUDERTAB at all
 - Education level coding changes require careful interpretation
 - Geographic centroids are approximations (use `buurt_eff_r` as error metric)
-
-## Troubleshooting
-
-### Common Issues
-
-**Missing files for specific years:**
-- Check `config.json` for custom paths
-- Verify file naming conventions in CBS Microdata
-- File naming may alter in Microdata RA environment over time
-
-**Encoding errors:**
-- Add year-specific encodings (`encoding_overrides`) to `config.json`
-- Check file format (some years use different separators)
-
-**Geometric errors in buurt processing:**
-- Ensure shapefile integrity
-- Check CRS definitions for coordinate transformations
 
 ## Contact
 
