@@ -16,6 +16,7 @@ Arguments:
 start_year
 end_year
 working_folder
+[existing_mapping]  optional: csv.gz with columns id and label (ids 0..N-1); saved as the mapping instead of building a new one
 
 Inputs:
 -------
@@ -40,6 +41,15 @@ from pipeline_config import load_config, dataset_path, dataset_option
 start_year = int(sys.argv[1])
 end_year = int(sys.argv[2])
 working_folder = sys.argv[3]
+
+# CHG-2026-11: optional 4th argument, an existing id/label mapping (csv.gz) to use instead of building a new one
+if len(sys.argv) > 4:
+    merged_node_df = pd.read_csv(sys.argv[4], usecols=["id","label"])[["id","label"]].sort_values("id").reset_index(drop=True)    
+    # save
+    print(f"Saving merged dataframe to " + os.path.join(working_folder,"temp",f"merged_node_mapping_{start_year}_{end_year}.csv.gz")+"...")
+    merged_node_df.to_csv(os.path.join(working_folder,"temp",f"merged_node_mapping_{start_year}_{end_year}.csv.gz"),header=True,index=False,compression="gzip")
+    print("Done.")           
+    sys.exit(0)
 
 # CHG-2026-11: configuration file with file paths, separators and encodings
 cfg = load_config(working_folder)

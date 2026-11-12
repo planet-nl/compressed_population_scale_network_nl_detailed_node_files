@@ -65,6 +65,7 @@ working_folder/
 **Input:**
 - GBAPERSOONTAB files for each year (CSV format)
 - `config.json` to find the correct file paths, separators, and encodings for GBAPERSOONTAB files
+- Optional 4th argument: path to an existing `id`/`label` csv.gz mapping, which is saved as the mapping instead of building a new one (to keep ids aligned with existing edge files)
 
 **Output:**
 - `temp/merged_node_mapping_{start_year}_{end_year}.csv.gz`
