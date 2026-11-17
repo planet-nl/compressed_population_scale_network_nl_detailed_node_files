@@ -132,7 +132,7 @@ elif fn.split(".")[-1]=="dta":
         for c in ["landsdeel","provincie","coropgebied"]:
             df[c] = df[c].str.slice(2,4).map(int)
     
-        df["gemeente_code"] = "GM" + df["gemeente"].astype(str)
+        df["gemeente_code"] = "GM" + df["gemeente_code"].astype(str)
         df["landsdeel"] = df["landsdeel"].astype(int)
         df["provincie"] = df["provincie"].astype(int)
         df["coropgebied"] = df["coropgebied"].astype(int)
