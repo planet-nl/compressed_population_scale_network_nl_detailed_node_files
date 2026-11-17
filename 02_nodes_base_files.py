@@ -30,7 +30,7 @@ Input:
 
 Output:
 -------
-    * {output_folder}\\temp\\base_start_{start_year}_end_{end_year}_year_{year}.csv.gz
+    * {output_folder}/temp/base_start_{start_year}_end_{end_year}_year_{year}.csv.gz
         * label
         * active (if True, person is in the nodelist of the given year)
         * gender
@@ -229,7 +229,7 @@ nodes = merged_nodes\
 
 print("\tDone.")
 
-output = f'{output_folder}\\temp\\base_start_{start_year}_end_{end_year}_year_{year}.csv'
+output = os.path.join(output_folder, "temp", f"base_start_{start_year}_end_{end_year}_year_{year}.csv")
 print(f"Writing results to {output}...")
 with pl.Config(tbl_cols = -1):
     print(nodes.head())

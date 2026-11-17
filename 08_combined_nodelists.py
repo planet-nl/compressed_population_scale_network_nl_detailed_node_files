@@ -6,12 +6,12 @@ This script merges all previous node attribute files.
 
 Input:
 ------
-    * temp files of scripts 02-07 in {working_folder}\\temp
+    * temp files of scripts 02-07 in {working_folder}/temp
     * arguments: start_year, end_year, year, working_folder
 
 Output:
 -------
-    * {working_folder}\\yearly_node_files\\nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz
+    * {working_folder}/yearly_node_files/nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz
         * has all columns from previous files, plus added location metadata columns
 
 Usage:
@@ -67,17 +67,17 @@ else:
 
 print("Reading node attribute files...")
 # base
-nodes = pl.read_csv(f"{output_folder}\\temp\\base_start_{start_year}_end_{end_year}_year_{year}.csv.gz",has_header=True)
+nodes = pl.read_csv(os.path.join(output_folder, "temp", f"base_start_{start_year}_end_{end_year}_year_{year}.csv.gz"),has_header=True)
 #income
 if has_income:  
-    nodes_income = pl.read_csv(f"{output_folder}\\temp\\income_{year}.csv.gz",has_header=True)
+    nodes_income = pl.read_csv(os.path.join(output_folder, "temp", f"income_{year}.csv.gz"),has_header=True)
     nodes = nodes.join(nodes_income,on="label",how="left")
 # education
-nodes_education = pl.read_csv(f"{output_folder}\\temp\\education_{year}.csv.gz",has_header=True)
+nodes_education = pl.read_csv(os.path.join(output_folder, "temp", f"education_{year}.csv.gz"),has_header=True)
 # location
-nodes_location = pl.read_csv(f"{output_folder}\\temp\\location_{year}.csv.gz",has_header=True)
-buurt_metadata = pl.read_csv(f"{output_folder}\\temp\\buurt_metadata_{year}.csv.gz",has_header=True)
-gemeente_metadata = pl.read_csv(f"{output_folder}\\temp\\gemeente_metadata_{year}.csv.gz",has_header=True)
+nodes_location = pl.read_csv(os.path.join(output_folder, "temp", f"location_{year}.csv.gz"),has_header=True)
+buurt_metadata = pl.read_csv(os.path.join(output_folder, "temp", f"buurt_metadata_{year}.csv.gz"),has_header=True)
+gemeente_metadata = pl.read_csv(os.path.join(output_folder, "temp", f"gemeente_metadata_{year}.csv.gz"),has_header=True)
 
 nodes = (nodes
     .join(nodes_education,on="label",how="left")
@@ -98,7 +98,7 @@ with pl.Config(tbl_cols=-1):
 print("Done.")
 
 # saving
-output = f"{output_folder}\\yearly_node_files\\nodes_start_{start_year}_end_{end_year}_year_{year}.csv"
+output = os.path.join(output_folder, "yearly_node_files", f"nodes_start_{start_year}_end_{end_year}_year_{year}.csv")
 print(f"Saving merged node attribute dataframe to {output}...")
 nodes.write_csv(output)
 toc = time()

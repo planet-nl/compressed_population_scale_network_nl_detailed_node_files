@@ -12,8 +12,8 @@ Input:
 Output:
 -------
     * gemeente dataframe and codebook as json saved in 
-            {working_folder}\\temp\\gemeente_metadata_{year}.csv.gz, and
-            {working_folder}\\codebook\\gemeente_metadata_codebook_{year}.json
+            {working_folder}/temp/gemeente_metadata_{year}.csv.gz, and
+            {working_folder}/codebook/gemeente_metadata_codebook_{year}.json
         * "gemeente"
         * "landsdeel"
         * "provincie"
@@ -39,6 +39,7 @@ done
 """
 
 
+import os
 import pandas as pd
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
@@ -187,5 +188,5 @@ print("NUMBER of GEMEENTE: ",len(pd.unique(df["gemeente_code"])))
 # print(json.dumps(codebook,indent=4))
 
 # saving results
-df[var_of_interest].to_csv(f"{output_folder}\\temp\\gemeente_metadata_{year}.csv.gz",index=False,header=True,compression="gzip")
-json.dump(codebook,open(f"{output_folder}\\codebook\\gemeente_metadata_codebook_{year}.json","w"),indent=4)
+df[var_of_interest].to_csv(os.path.join(output_folder, "temp", f"gemeente_metadata_{year}.csv.gz"),index=False,header=True,compression="gzip")
+json.dump(codebook,open(os.path.join(output_folder, "codebook", f"gemeente_metadata_codebook_{year}.json"),"w"),indent=4)

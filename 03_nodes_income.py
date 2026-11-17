@@ -74,7 +74,7 @@ inpatab_file = inpatab_files[year]
 # CHG-2026-11: household network file and separator from config.json
 network_path = dataset_path(cfg, "huisgenotennetwerktab", year)
 sep = dataset_option(cfg, "huisgenotennetwerktab", "sep", year)
-nodes_path = f"{base_node_data_folder}\\temp\\base_start_{start_year}_end_{end_year}_year_{year}.csv.gz"
+nodes_path = os.path.join(base_node_data_folder, "temp", f"base_start_{start_year}_end_{end_year}_year_{year}.csv.gz")
 
 print(f"Loading household connections from {network_path}...")
 # load nodes

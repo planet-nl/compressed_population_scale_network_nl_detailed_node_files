@@ -1,22 +1,25 @@
-# Population-Scale Network Node Files - Detailed Processing Pipeline
+# Detailed Node Attributes for Compressed Population-scale Network Netherlands 2009-2023
 
-## Author
-Eszter Bokanyi (e.bokanyi@liacs.leidenuniv.nl)  
-Created: 2025-05-26
+Scripts that build yearly node attribute tables (demographics, income, education, place of residence and area metadata) for every person in the population-scale networks of the Netherlands, in the CBS Microdata Remote Access (RA) environment.
+
+| | |
+|---|---|
+| **Dataset** | Detailed Node Attributes for Compressed Population-scale Network Netherlands 2009-2023 |
+| **DOI** | forthcoming |
+| **Content** | One node table per year, 29 columns, one row per person in the node set of the networks |
+| **Years** | 2009–2023 (income from 2011) |
+| **Access** | CBS Microdata environment, CBS project 9629 |
+
+The first 9 columns (script 02) are also the `nodes.csv.gz` of the two network datasets, and `id` is the row/column index of their adjacency matrices. This is one of three related datasets, see [Related datasets](#related-datasets).
+
 
 ## Overview
 
-This repository contains a comprehensive data processing pipeline that generates detailed node attribute files for yearly population-scale social network analysis in the Microdata RA environment of Statistics Netherlands. The pipeline processes CBS Microdata to create enriched node dataframes containing demographic, socioeconomic, educational, and geographic information for all individuals registered in the GBA (Gemeentelijke Basisadministratie) between configurable start and end years.
+The pipeline combines several CBS Microdata sources into one node attribute table per year for all individuals registered in the GBA between a configurable start and end year. The tables can be used as node tables of `mlnlib` multilayer network objects or on their own for longitudinal person-level analysis.
 
-The pipeline combines multiple data sources from CBS Microdata to generate yearly node attribute tables that can be used with `mlnlib` multilayer network objects for longitudinal network analysis.
+### Workflow
 
-## Pipeline Architecture
-
-### Workflow Overview
-
-The pipeline follows a sequential processing approach:
-
-1. **Merge all person IDs** across years to create a unified node mapping
+1. **Merge all person IDs** across years to create a unified node mapping (or reuse an existing one)
 2. **For each year**, process:
    - Base demographic information
    - Income data (2011+)
@@ -24,10 +27,10 @@ The pipeline follows a sequential processing approach:
    - Geographic location (up to buurt level)
    - Buurt metadata
    - Gemeente metadata
-3. **Combine all attributes** into a single comprehensive node file per year
+3. **Combine all attributes** into a single node file per year
 4. **Clean up** temporary files
 
-### Output Structure
+### Output structure
 
 ```
 working_folder/
@@ -40,7 +43,42 @@ working_folder/
 └── log files                   # Execution logs with timestamps
 ```
 
-## Scripts Overview
+
+## Data format
+
+### Final node files
+
+- Location: `{working_folder}/yearly_node_files/`
+- Name: `nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz` (gzip-compressed CSV)
+- One row per person in the merged node mapping, sorted by `id`
+
+Columns:
+
+- **Identity:** `label`, `id`
+- **Status:** `active`
+- **Demographics:** `gender`, `birth_year`, `migrant_generation`, `number_of_parents_from_abroad`, `missing_mother`, `missing_father`
+- **Income (2011+):** `household_income`, `household_income_percentile`, `individual_income_gross`, `individual_income_percentile`, `socioeconomic_situation`
+- **Education:** `educ_weight`, `educ_level`
+- **Location:** `household_change_year`, `gemeente_code`, `wijk_code`, `buurt_code`
+- **Buurt metadata:** `buurt_centroid_x`, `buurt_centroid_y`, `buurt_centroid_lat`, `buurt_centroid_lon`, `buurt_eff_r`
+- **Municipality metadata:** `landsdeel`, `provincie`, `coropgebied`, `stedgem`
+
+The columns are described per script below.
+
+### Codebook files
+
+- Location: `{working_folder}/codebook/`
+- Format: JSON
+- Content: mappings from the codes in the municipality metadata columns to their names
+
+### Log files
+
+- Location: `{working_folder}/`
+- `log_messages_{timestamp}.log`: standard output
+- `log_error_{timestamp}.log`: error messages
+
+
+## Scripts
 
 ### 00_run_all.sh
 **Master orchestration script**
@@ -55,7 +93,9 @@ working_folder/
 - `working_folder`: Base directory for all operations (e.g., `H:\ODISSEI_portal_C`)
 - `start_year`: First year to process (e.g., 2009)
 - `end_year`: Last year to process (e.g., 2023)
-- Everything else (file paths, reference date, first income year) is in `src/config.json`, see [Configuration Files](#configuration-files)
+- Everything else (file paths, reference date, first income year) is in `src/config.json`, see [Configuration](#configuration)
+
+Paths are joined with `os.path.join`, so the scripts run both in the CBS RA (Windows) and on Linux/macOS.
 
 ### 01_nodes_merged_nodelist.py
 **Creates unified node ID mapping**
@@ -79,7 +119,7 @@ working_folder/
 ### 02_nodes_base_files.py
 **Extracts base demographic information**
 
-**Purpose:** Creates yearly node dataframes with core demographic attributes and activity flags.
+**Purpose:** Creates yearly node dataframes with core demographic attributes and activity flags. Its output is also the `nodes.csv.gz` of the two network datasets.
 
 **Input:**
 - `merged_node_mapping_{start_year}_{end_year}.csv.gz` (from script 01)
@@ -112,7 +152,7 @@ working_folder/
 ### 03_nodes_income.py
 **Calculates household and individual income** (years 2011+)
 
-**Purpose:** Enriches nodes with household income, individual income, and percentile rankings using household network analysis. Household income is assigned based on connected components in the household network, and NOT the CBS economic main earner assignment and household construction method to align any potential future network analysis.
+**Purpose:** Enriches nodes with household income, individual income, and percentile rankings using household network analysis. Household income is assigned based on connected components in the household network, and NOT the CBS economic main earner assignment and household construction method, to align with network analysis.
 
 **Input:**
 - HUISGENOTENNETWERKTAB (household network files)
@@ -142,7 +182,7 @@ working_folder/
 ### 04_nodes_education.py
 **Determines highest education level**
 
-**Purpose:** Maps education codes to standardized 4-level classification system.
+**Purpose:** Harmonizes the highest attained education level across the coding systems used in different years.
 
 **Input:**
 - HOOGSTEOPLTAB files (varies by year)
@@ -153,15 +193,15 @@ working_folder/
 
 **Columns:**
 - `label`: RINPERSOON
-- `educ_level`: Education level (single character code)
 - `educ_weight`: Weight for education record
+- `educ_level`: Education level, the first digit of the aggregated SOI education level code (1 = low, 2 = middle, 3 = high; see the HOOGSTEOPLTAB documentation for other codes)
 
 **Key Features:**
 - Handles different education coding systems across years:
   - 2009-2012: Uses OPLNRHB codes with conversion
   - 2013-2018: Uses OPLNIVSOI2016AGG4HBMETNIRWO
   - 2019+: Uses OPLNIVSOI2021AGG4HBmetNIRWO
-- Converts all to standardized 4-level aggregation
+- Takes the first digit of the aggregated (AGG4) code in all periods, so the levels are comparable across years
 
 ### 05_nodes_location.py
 **Links geographic location to buurt level**
@@ -177,10 +217,10 @@ working_folder/
 
 **Columns:**
 - `label`: RINPERSOON
-- `buurt_code`: Buurt code (e.g., BU00000101)
-- `wijk_code`: Wijk code (e.g., WK000001)
-- `gemeente_code`: Municipality code (e.g., GM0001)
 - `household_change_year`: Year of most recent address change
+- `gemeente_code`: Municipality code (e.g., GM0001)
+- `wijk_code`: Wijk code (e.g., WK000001)
+- `buurt_code`: Buurt code (e.g., BU00000101)
 
 **Key Features:**
 - Filters addresses valid on the reference date (Jan 1 of the target year, same as in script 02)
@@ -200,7 +240,7 @@ working_folder/
 
 **Columns:**
 - `buurt_code`: Buurt identifier
-- `buurt_name`: Buurt name
+- `buurt_name`: Buurt name (not included in the final node files)
 - `buurt_centroid_x`: X coordinate (Amersfoort/RD projection)
 - `buurt_centroid_y`: Y coordinate (Amersfoort/RD projection)
 - `buurt_centroid_lat`: Latitude (WGS84)
@@ -241,7 +281,7 @@ working_folder/
 ### 08_combined_nodelists.py
 **Merges all attribute files**
 
-**Purpose:** Combines all individual attribute files into a single comprehensive node file per year.
+**Purpose:** Combines all individual attribute files into a single node file per year (see [Final node files](#final-node-files)).
 
 **Input:**
 - All temporary files from scripts 02-07
@@ -249,55 +289,47 @@ working_folder/
 **Output:**
 - `yearly_node_files/nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz`
 
-**Final Schema:**
-- **Identity:** label, id
-- **Status:** active
-- **Demographics:** gender, birth_year, migrant_generation, number_of_parents_from_abroad, missing_mother, missing_father
-- **Income (2011+):** household_income, household_income_percentile, individual_income_gross, individual_income_percentile, socioeconomic_situation
-- **Education:** educ_level, educ_weight
-- **Location:** buurt_code, wijk_code, gemeente_code, household_change_year
-- **Buurt metadata:** buurt_centroid_x, buurt_centroid_y, buurt_centroid_lat, buurt_centroid_lon, buurt_eff_r
-- **Municipality metadata:** landsdeel, provincie, coropgebied, stedgem
-
 **Key Features:**
 - Left joins ensure all nodes from merged mapping are present
 - Proper type casting for all columns
 - Conditional handling of income data (only for years 2011+)
 
-## Configuration Files
+
+## Configuration
 
 ### config.json
 Central configuration read by all scripts through `pipeline_config.py` (both files, together with `layers.csv`, have to be in `{working_folder}/src/`):
-- `settings`: `address_reference` (`previous_year_dec31` or `year_jan1`: the date on which addresses are looked up, both for the population in script 02 and the location in script 05), `income_first_year`, `household_member_layer`, `layers_file`
+- `settings`: `address_reference` (`previous_year_dec31` or `year_jan1`: the date on which addresses are looked up, both for the population in script 02 and the location in script 05; the published dataset uses `year_jan1`), `income_first_year`, `household_member_layer`, `layers_file`
 - `education`: reference table files and the coding periods (which column holds the education level in which years, and whether it needs conversion)
 - `datasets`: per dataset a default `path` (with `{year}`), `overrides` for years with different file names, and `sep` / `encoding` (with `sep_overrides` / `encoding_overrides` per year). Cumulative files (GBAOVERLIJDENTAB, KINDOUDERTAB, GBAADRESOBJECTBUS) have a single path to the latest version. INPATAB and INHATAB are found by scanning a directory.
 - To add a year or a new file version, edit this file only. Places in the code changed to read from the config are marked with `CHG-2026-11`.
 
 ### layers.csv
-Defines network layer structure for multilayer network analysis (read by script 03):
+The 33-layer definition of the network dataset (same file as in [compressed_population_scale_network_nl](https://github.com/planet-nl/compressed_population_scale_network_nl)). Script 03 only uses it to select the household-member layer (401):
 - Household connections (401, 402)
 - School connections (501-506)
 - Neighbor connections (101, 102)
-- Colleague connections (201)
-- Family connections (301-308+)
+- Work connections (201)
+- Family connections (301-322)
 
-## Data Sources
 
-### Primary CBS Microdata Files
+## Data sources
 
-| File | Description | Frequency |
+### Primary CBS Microdata files
+
+| File | Description | Version used |
 |------|-------------|-----------|
 | GBAPERSOONTAB | Person demographics | Yearly |
 | GBAADRESOBJECTBUS | Address registrations | Latest file (cumulative) |
-| GBAOVERLIJDENTAB | Death records | Updated yearly (cumulative) |
+| GBAOVERLIJDENTAB | Death records | Latest file (cumulative) |
 | KINDOUDERTAB | Parent-child relationships | Latest file (cumulative) |
-| HUISGENOTENNETWERKTAB | Household networks | Yearly |
+| HUISGENOTENNETWERKTAB | Household networks | Yearly (2011+) |
 | INHATAB | Household income | Yearly (2011+) |
 | INPATAB | Individual income | Yearly (2011+) |
 | HOOGSTEOPLTAB | Education levels | Yearly |
-| VSLGWBTAB | Address-buurt mapping | Updated |
+| VSLGWBTAB | Address-buurt mapping | Latest file (one `bc{year}` column per year) |
 
-### Utility Files
+### Utility files
 
 | File | Description |
 |------|-------------|
@@ -305,29 +337,23 @@ Defines network layer structure for multilayer network analysis (read by script 
 | GIS shapefiles | Buurt/gemeente boundaries |
 | Education conversion tables | Standardization of education codes |
 
-## System Requirements
 
-### Python Environment
-- Python 3.x
-- Required packages:
-  - `pandas`
-  - `polars`
-  - `numpy`
-  - `scipy`
-  - `geopandas`
-  - `pyreadstat`
-  - `openpyxl` (script 07, GIN xlsx files)
-  - `mlnlib` (for network analysis)
-  - `matplotlib` (only for `compare_node_files.ipynb`)
+## Requirements
 
-### Computational Requirements
-- Large memory capacity (population-scale data)
-- Access to CBS Microdata remote access environment
-- Sufficient disk space for temporary files
+- Python 3.10+
+- `pandas`, `polars`, `numpy`, `scipy`, `geopandas`, `pyreadstat`, `openpyxl` (script 07, GIN xlsx files), `mlnlib` (script 03)
+- Access to the CBS Microdata RA environment, a large memory capacity and enough disk space for the temporary files
+
+The published data were produced with `mlnlib` 0.2.39; 0.3.0 should work as well.
+
+```bash
+pip install pandas polars numpy scipy geopandas pyreadstat openpyxl mlnlib==0.2.39
+```
+
 
 ## Usage
 
-### Full Pipeline Execution
+### Full pipeline
 
 ```bash
 # Edit configuration in 00_run_all.sh
@@ -339,11 +365,11 @@ end_year=2023
 bash 00_run_all.sh
 ```
 
-### Individual Script Execution
+### Individual scripts
 
 ```bash
-# Create merged node mapping
-python 01_nodes_merged_nodelist.py 2009 2023 /h/ODISSEI_portal_C
+# Create merged node mapping (optionally reuse an existing id/label mapping as 4th argument)
+python 01_nodes_merged_nodelist.py 2009 2023 /h/ODISSEI_portal_C [existing_mapping.csv.gz]
 
 # Process single year
 python 02_nodes_base_files.py 2009 2023 2015 /h/ODISSEI_portal_C
@@ -361,55 +387,57 @@ for year in $(seq 2009 2023); do
 done
 ```
 
-### Comparing two runs
 
-`compare_node_files.ipynb` compares the yearly node files of a new run with a previous run, variable by variable (schema, population, share of changed values, distributions, sanity checks). Set the two folders and the years in its first cell. It only prints aggregated results.
+## Repository structure
 
-## Output Files
+```
+.
+├── 00_run_all.sh               # Runs all steps for a range of years
+├── 01_nodes_merged_nodelist.py # Unified id mapping
+├── 02_nodes_base_files.py      # Base demographics and the active flag
+├── 03_nodes_income.py          # Household and individual income (2011+)
+├── 04_nodes_education.py       # Highest education level
+├── 05_nodes_location.py        # Gemeente, wijk and buurt of the address
+├── 06_buurt_metadata.py        # Buurt centroids and size
+├── 07_gemeente_metadata.py     # Municipality regions and codebook
+├── 08_combined_nodelists.py    # Joins everything into the yearly node file
+├── pipeline_config.py          # Reads config.json, shared helpers
+├── config.json                 # File paths and settings
+├── layers.csv                  # 33-layer definition of the network dataset
+└── README.md
+```
 
-### Final Node Files
-- Location: `{working_folder}/yearly_node_files/`
-- Format: `nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz`
-- Compression: gzip
-- Structure: One row per person in merged node mapping
+`00_run_all.sh` expects the scripts, `config.json`, `pipeline_config.py` and `layers.csv` in `{working_folder}/src/`.
 
-### Codebook Files
-- Location: `{working_folder}/codebook/`
-- Format: JSON
-- Content: Mappings from codes to human-readable labels
 
-### Log Files
-- Location: `{working_folder}/`
-- Format: 
-  - `log_messages_{timestamp}.log` - Standard output
-  - `log_error_{timestamp}.log` - Error messages
+## Related datasets
 
-## Important Notes
+The three datasets cover 2009–2023 and share the same nodes: every person has the same `id` and `label` (RINPERSOON) in all of them, and the yearly population (`active`) is defined on 1 January. The `nodes.csv.gz` of the two network datasets holds the first 9 columns of the node attribute tables. All three are available in the CBS Microdata environment (CBS project 9629) and can be read with [`mlnlib`](https://github.com/planet-nl/mlnlib) ([PyPI](https://pypi.org/project/mlnlib/)).
 
-### Data Privacy
-- All scripts operate within CBS Microdata secure environment
-- RINPERSOON identifiers are pseudonymized person IDs
-- Output files should remain within secure environment
+| Dataset | Content | DOI | Code |
+|---|---|---|---|
+| Compressed Population-scale Network Netherlands 2009-2023 in MLN format | 33 layers, directed | [10.34894/8575OP](https://doi.org/10.34894/8575OP) | [compressed_population_scale_network_nl](https://github.com/planet-nl/compressed_population_scale_network_nl) |
+| Simplified Compressed Population-scale Network Netherlands 2009-2023 in MLN format | 5 layers, undirected | forthcoming | [compressed_population_scale_network_nl_simplified](https://github.com/planet-nl/compressed_population_scale_network_nl_simplified) |
+| Detailed Node Attributes for Compressed Population-scale Network Netherlands 2009-2023 | Yearly node attribute tables | forthcoming | [compressed_population_scale_network_nl_detailed_node_files](https://github.com/planet-nl/compressed_population_scale_network_nl_detailed_node_files) |
 
-### Year-Specific Considerations
-- **Income data**: Only available from 2011 onwards
-- **File formats**: Vary by year (CSV, SAV, XLSX)
-- **Education coding**: Different systems in different periods
-- **Administrative boundaries**: Buurt/gemeente codes change over time
 
-### Active Node Definition
-A person is considered "active" in year Y if they:
-1. Were registered at an address on the reference date (`settings.address_reference` in `config.json`, default Jan 1 of year Y)
-2. Were NOT deceased by Jan 1 of year Y
+## How to cite
 
-### Known Limitations
-- Household income assignments may have temporal mismatches
-- Some households have no identified main earners (`household_income = -1`, empty percentile)
-- `missing_mother` / `missing_father` are 1 also for persons who are not in KINDOUDERTAB at all
-- Education level coding changes require careful interpretation
-- Geographic centroids are approximations (use `buurt_eff_r` as error metric)
+Please cite the dataset(s) you use:
 
-## Contact
+> Bokányi, E., Kazmina, Y., Heemskerk, E. M., & Takes, F. W. (2025). *Compressed Population-scale Network Netherlands 2009-2023 in MLN format* [Data set]. ODISSEI Portal. https://doi.org/10.34894/8575OP
 
-For questions or issues, contact:
-- Eszter Bokanyi: e.bokanyi@liacs.leidenuniv.nl
+> Bokányi, E., Kazmina, Y., Heemskerk, E. M., & Takes, F. W. (2026). *Simplified Compressed Population-scale Network Netherlands 2009-2023 in MLN format* [Data set]. ODISSEI Portal. DOI forthcoming.
+
+> Bokányi, E., Kazmina, Y., Heemskerk, E. M., & Takes, F. W. (2026). *Detailed Node Attributes for Compressed Population-scale Network Netherlands 2009-2023* [Data set]. ODISSEI Portal. DOI forthcoming.
+
+and the paper describing the network:
+
+> Bokányi, E., Heemskerk, E. M., & Takes, F. W. (2023). The anatomy of a population-scale social network. *Scientific Reports*, 13, 9209. https://doi.org/10.1038/s41598-023-36324-9
+
+
+## Authors and contact
+
+Eszter Bokányi (Leiden University), Yuliia Kazmina (University of Amsterdam), Eelke M. Heemskerk (University of Amsterdam), Frank W. Takes (Leiden University), and the PLANET-NL team (https://planetnl.org).
+
+For questions, contact the PLANET-NL team: info@planetnl.org

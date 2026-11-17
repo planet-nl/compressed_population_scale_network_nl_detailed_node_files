@@ -11,7 +11,7 @@ Input:
 
 Output:
 -------
-    * buurt dataframe saved in {working_folder}\\temp\\buurt_metadata_{year}.csv.gz
+    * buurt dataframe saved in {working_folder}/temp/buurt_metadata_{year}.csv.gz
 
 Usage:
 ------
@@ -32,6 +32,7 @@ done
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+import os
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
 from pipeline_config import load_config, dataset_path
@@ -91,4 +92,4 @@ gdf["buurt_eff_r"] = np.sqrt(gdf["geometry"].area / np.pi)
 var_of_interest = ["buurt_code","buurt_name","buurt_centroid_x","buurt_centroid_y","buurt_centroid_lat","buurt_centroid_lon","buurt_eff_r"]
 
 # saving results
-pd.DataFrame(gdf[var_of_interest]).to_csv(f"{output_folder}\\temp\\buurt_metadata_{year}.csv.gz",index=False,header=True,compression="gzip")
+pd.DataFrame(gdf[var_of_interest]).to_csv(os.path.join(output_folder, "temp", f"buurt_metadata_{year}.csv.gz"),index=False,header=True,compression="gzip")

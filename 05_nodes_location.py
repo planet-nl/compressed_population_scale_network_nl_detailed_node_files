@@ -18,7 +18,7 @@ Input:
 
 Output:
 -------
-    * dataframe saved in {working_folder}\\temp\\location_{year}.csv.gz
+    * dataframe saved in {working_folder}/temp/location_{year}.csv.gz
         * label (RINPERSOON)
         * buurt_code
         * wijk_code
@@ -105,7 +105,7 @@ nodes_address = (nodes_address\
 print("Done.")
 
 # saving results
-output = f"{output_folder}\\temp\\location_{year}.csv"
+output = os.path.join(output_folder, "temp", f"location_{year}.csv")
 print(f"Saving results to {output}...")
 with pl.Config(tbl_cols = -1):  
     print(nodes_address.head())
