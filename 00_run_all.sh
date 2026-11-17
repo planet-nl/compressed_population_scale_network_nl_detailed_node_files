@@ -12,7 +12,9 @@
 
 # It combines individual-level source files from Microdata with education, municipality, and buurt metadata information.
 
-working_folder="H:\\ODISSEI_portal_C"
+working_folder="H:\\ODISSEI_portal_C_work"
+# folder of the dataset: one subfolder per year with nodes.csv.gz and codebook.json (script 09)
+dataset_folder="H:\\ODISSEI_portal_C"
 start_year=2009
 end_year=2023
 
@@ -69,6 +71,9 @@ do
     /c/mambaforge/envs/9629/python.exe src/08_combined_nodelists.py $start_year $end_year $year $working_folder >>$log_file 2>>$error_file
 done
 
-echo -e "==============================\n 09 Deleting temporary files. \n==============================" | tee -a $log_file $error_file
+echo -e "==============================\n 09 One folder per year. \n==============================" | tee -a $log_file $error_file
+/c/mambaforge/envs/9629/python.exe src/09_reorganize_output.py $working_folder $dataset_folder $start_year $end_year >>$log_file 2>>$error_file
+
+echo -e "==============================\n 10 Deleting temporary files. \n==============================" | tee -a $log_file $error_file
 rm -rf $working_folder"/temp"  >>$log_file 2>>$error_file
-echo -e "==============================\n Done. See results in ./yearly_node_files and ./codebook. \n==============================" | tee -a $log_file $error_file
+echo -e "==============================\n Done. See results in $dataset_folder. \n==============================" | tee -a $log_file $error_file

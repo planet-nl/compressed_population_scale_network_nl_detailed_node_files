@@ -6,7 +6,7 @@ Scripts that build yearly node attribute tables (demographics, income, education
 |---|---|
 | **Dataset** | Detailed Node Attributes for Compressed Population-scale Network Netherlands 2009-2023 |
 | **DOI** | forthcoming |
-| **Content** | One node table per year, 29 columns, one row per person in the node set of the networks |
+| **Content** | One folder per year: node table (`nodes.csv.gz`, 29 columns, one row per person in the node set of the networks) and codebook (`codebook.json`) |
 | **Years** | 2009–2023 (income from 2011) |
 | **Access** | CBS Microdata environment, CBS project 9629 |
 
@@ -29,30 +29,43 @@ The pipeline combines several CBS Microdata sources into one node attribute tabl
    - Gemeente metadata
 3. **Combine all attributes** into a single node file per year
 4. **Clean up** temporary files
+5. **Reorganize** the output into one folder per year (script 09)
 
 ### Output structure
+
+Scripts 01–08 write into the working folder:
 
 ```
 working_folder/
 ├── src/                        # Scripts, config.json, pipeline_config.py, layers.csv
-├── yearly_node_files/          # Final output files
+├── yearly_node_files/          # Node files
 │   └── nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz
 ├── codebook/                   # Metadata codebooks
 │   └── gemeente_metadata_codebook_{year}.json
 ├── temp/                       # Temporary intermediate files (deleted after completion)
-└── log files                   # Execution logs with timestamps
+└── log files                   # log_messages_{timestamp}.log, log_error_{timestamp}.log
+```
+
+`09_reorganize_output.py` then copies the node files and codebooks into the layout of the dataset, one folder per year like the two network datasets:
+
+```
+dataset_folder/
+├── 2009/
+│   ├── nodes.csv.gz            # Node table of 2009
+│   └── codebook.json           # Municipality metadata codebook of 2009
+├── ...
+└── 2023/
+    ├── nodes.csv.gz
+    └── codebook.json
 ```
 
 
 ## Data format
 
-The delivered dataset has one folder per year, like the two network datasets: `{year}/nodes.csv.gz` (the final node file) and `{year}/codebook.json` (the gemeente metadata codebook). [`09_reorganize_output.py`](09_reorganize_output.py) copies the pipeline output into this layout.
+### nodes.csv.gz
 
-### Final node files
-
-- Location: `{working_folder}/yearly_node_files/`
-- Name: `nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz` (gzip-compressed CSV)
-- One row per person in the merged node mapping, sorted by `id`
+- Gzip-compressed CSV, one row per person in the merged node mapping, sorted by `id`
+- `id` is the row/column index in the adjacency matrices (`edges.npz`) of the network datasets of the same year
 
 Columns:
 
@@ -67,17 +80,9 @@ Columns:
 
 The columns are described per script below.
 
-### Codebook files
+### codebook.json
 
-- Location: `{working_folder}/codebook/`
-- Format: JSON
-- Content: mappings from the codes in the municipality metadata columns to their names
-
-### Log files
-
-- Location: `{working_folder}/`
-- `log_messages_{timestamp}.log`: standard output
-- `log_error_{timestamp}.log`: error messages
+- JSON object with one entry per municipality metadata column (`landsdeel`, `provincie`, `coropgebied`, `stedgem`), mapping each code to its name in that year
 
 
 ## Scripts
@@ -88,11 +93,13 @@ The columns are described per script below.
 - Coordinates the entire pipeline execution
 - Sets up directory structure (temp, codebook, yearly_node_files)
 - Processes years sequentially from `start_year` to `end_year`
+- Copies the results into one folder per year in `dataset_folder` (script 09)
 - Generates timestamped log files for debugging
 - Cleans up temporary files upon completion
 
 **Configuration:**
-- `working_folder`: Base directory for all operations (e.g., `H:\ODISSEI_portal_C`)
+- `working_folder`: Base directory for all operations (e.g., `H:\ODISSEI_portal_C_work`)
+- `dataset_folder`: Output folder of the dataset, one subfolder per year (e.g., `H:\ODISSEI_portal_C`); keep it outside `working_folder`
 - `start_year`: First year to process (e.g., 2009)
 - `end_year`: Last year to process (e.g., 2023)
 - Everything else (file paths, reference date, first income year) is in `src/config.json`, see [Configuration](#configuration)
@@ -283,7 +290,7 @@ Paths are joined with `os.path.join`, so the scripts run both in the CBS RA (Win
 ### 08_combined_nodelists.py
 **Merges all attribute files**
 
-**Purpose:** Combines all individual attribute files into a single node file per year (see [Final node files](#final-node-files)).
+**Purpose:** Combines all individual attribute files into a single node file per year (see [Data format](#data-format)).
 
 **Input:**
 - All temporary files from scripts 02-07
@@ -299,9 +306,18 @@ Paths are joined with `os.path.join`, so the scripts run both in the CBS RA (Win
 ### 09_reorganize_output.py
 **Copies the output into one folder per year**
 
+**Purpose:** Gives the dataset the same layout as the two network datasets, so that every year folder holds its own node table and codebook.
+
+**Input:**
+- `yearly_node_files/nodes_start_{start_year}_end_{end_year}_year_{year}.csv.gz` (from script 08)
+- `codebook/gemeente_metadata_codebook_{year}.json` (from script 07)
+
 **Output:**
-- `{output_folder}/{year}/nodes.csv.gz` (from `yearly_node_files/`)
-- `{output_folder}/{year}/codebook.json` (from `codebook/`)
+- `{dataset_folder}/{year}/nodes.csv.gz`
+- `{dataset_folder}/{year}/codebook.json`
+
+**Key Features:**
+- Copies the files, so the pipeline output stays unchanged; use a `dataset_folder` outside `{working_folder}`
 
 
 ## Configuration
@@ -366,11 +382,12 @@ pip install pandas polars numpy scipy geopandas pyreadstat openpyxl mlnlib==0.2.
 
 ```bash
 # Edit configuration in 00_run_all.sh
-working_folder="H:\\ODISSEI_portal_C"
+working_folder="H:\\ODISSEI_portal_C_work"
+dataset_folder="H:\\ODISSEI_portal_C"
 start_year=2009
 end_year=2023
 
-# Execute
+# Execute (scripts 01-09)
 bash 00_run_all.sh
 ```
 
@@ -378,23 +395,23 @@ bash 00_run_all.sh
 
 ```bash
 # Create merged node mapping (optionally reuse an existing id/label mapping as 4th argument)
-python 01_nodes_merged_nodelist.py 2009 2023 /h/ODISSEI_portal_C [existing_mapping.csv.gz]
+python 01_nodes_merged_nodelist.py 2009 2023 /h/ODISSEI_portal_C_work [existing_mapping.csv.gz]
 
 # Process single year
-python 02_nodes_base_files.py 2009 2023 2015 /h/ODISSEI_portal_C
-python 03_nodes_income.py 2009 2023 2015 /h/ODISSEI_portal_C  # Only for 2011+
-python 04_nodes_education.py 2015 /h/ODISSEI_portal_C
-python 05_nodes_location.py 2015 /h/ODISSEI_portal_C
-python 06_buurt_metadata.py 2015 /h/ODISSEI_portal_C
-python 07_gemeente_metadata.py 2015 /h/ODISSEI_portal_C
-python 08_combined_nodelists.py 2009 2023 2015 /h/ODISSEI_portal_C
+python 02_nodes_base_files.py 2009 2023 2015 /h/ODISSEI_portal_C_work
+python 03_nodes_income.py 2009 2023 2015 /h/ODISSEI_portal_C_work  # Only for 2011+
+python 04_nodes_education.py 2015 /h/ODISSEI_portal_C_work
+python 05_nodes_location.py 2015 /h/ODISSEI_portal_C_work
+python 06_buurt_metadata.py 2015 /h/ODISSEI_portal_C_work
+python 07_gemeente_metadata.py 2015 /h/ODISSEI_portal_C_work
+python 08_combined_nodelists.py 2009 2023 2015 /h/ODISSEI_portal_C_work
 
 # One folder per year (after all years are done)
-python 09_reorganize_output.py /h/ODISSEI_portal_C /h/ODISSEI_portal_C_yearly 2009 2023
+python 09_reorganize_output.py /h/ODISSEI_portal_C_work /h/ODISSEI_portal_C 2009 2023
 
 # Process multiple years with loop
 for year in $(seq 2009 2023); do
-    python 02_nodes_base_files.py 2009 2023 $year /h/ODISSEI_portal_C
+    python 02_nodes_base_files.py 2009 2023 $year /h/ODISSEI_portal_C_work
     # ... other scripts
 done
 ```
