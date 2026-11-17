@@ -46,6 +46,8 @@ working_folder/
 
 ## Data format
 
+The delivered dataset has one folder per year, like the two network datasets: `{year}/nodes.csv.gz` (the final node file) and `{year}/codebook.json` (the gemeente metadata codebook). [`09_reorganize_output.py`](09_reorganize_output.py) copies the pipeline output into this layout.
+
 ### Final node files
 
 - Location: `{working_folder}/yearly_node_files/`
@@ -294,6 +296,13 @@ Paths are joined with `os.path.join`, so the scripts run both in the CBS RA (Win
 - Proper type casting for all columns
 - Conditional handling of income data (only for years 2011+)
 
+### 09_reorganize_output.py
+**Copies the output into one folder per year**
+
+**Output:**
+- `{output_folder}/{year}/nodes.csv.gz` (from `yearly_node_files/`)
+- `{output_folder}/{year}/codebook.json` (from `codebook/`)
+
 
 ## Configuration
 
@@ -380,6 +389,9 @@ python 06_buurt_metadata.py 2015 /h/ODISSEI_portal_C
 python 07_gemeente_metadata.py 2015 /h/ODISSEI_portal_C
 python 08_combined_nodelists.py 2009 2023 2015 /h/ODISSEI_portal_C
 
+# One folder per year (after all years are done)
+python 09_reorganize_output.py /h/ODISSEI_portal_C /h/ODISSEI_portal_C_yearly 2009 2023
+
 # Process multiple years with loop
 for year in $(seq 2009 2023); do
     python 02_nodes_base_files.py 2009 2023 $year /h/ODISSEI_portal_C
@@ -401,6 +413,7 @@ done
 ├── 06_buurt_metadata.py        # Buurt centroids and size
 ├── 07_gemeente_metadata.py     # Municipality regions and codebook
 ├── 08_combined_nodelists.py    # Joins everything into the yearly node file
+├── 09_reorganize_output.py     # One folder per year: nodes.csv.gz, codebook.json
 ├── pipeline_config.py          # Reads config.json, shared helpers
 ├── config.json                 # File paths and settings
 ├── layers.csv                  # 33-layer definition of the network dataset
